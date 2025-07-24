@@ -1,6 +1,6 @@
 # Changelog
 
-## [v0.6.6] - 2023-10-10
+## [v0.6.6] - 2025-07-24
 
 ### Added
 - Added a new method `verify_content_type` in the `Stuff` class to verify and convert content to the expected type.
