@@ -40,8 +40,8 @@ async def dry_run_single_pipe(pipe_code: str) -> str:
         # Run the single pipe
         result = await dry_run_pipes(pipes=[pipe])
         return result.get(pipe_code, f"FAILED: No result for pipe '{pipe_code}'")
-    except Exception as e:
-        return f"FAILED: {str(e)}"
+    except Exception as exc:
+        return f"FAILED: {str(exc)}"
 
 
 async def dry_run_pipes(pipes: List[PipeAbstract]) -> Dict[str, str]:
@@ -180,9 +180,9 @@ def _convert_to_working_memory_format(needed_inputs_spec: PipeInputSpec) -> List
                 )
                 needed_inputs_for_factory.append(text_typed_named_input_requirement)
 
-        except Exception as e:
+        except Exception as exc:
             # Fallback to TextContent for any errors
-            log.warning(f"Error getting structure class for concept '{named_input_requirement.concept_code}': {e}, falling back to TextContent")
+            log.warning(f"Error getting structure class for concept '{named_input_requirement.concept_code}': {exc}, falling back to TextContent")
             text_typed_named_input_requirement = TypedNamedInputRequirement.make_from_named(
                 named=named_input_requirement,
                 structure_class=TextContent,

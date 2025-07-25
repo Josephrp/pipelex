@@ -28,8 +28,6 @@ class SubPipe(BaseModel):
     ) -> PipeOutput:
         """Run or dry run a single operation self."""
         log.debug(f"SubPipe {self.pipe_code} to generate {self.output_name}")
-        working_memory.pretty_print_summary()
-        # step_run_params.push_pipe_code(pipe_code=self.pipe_code)
         if self.output_multiplicity:
             sub_pipe_run_params.output_multiplicity = self.output_multiplicity
         pipe = get_required_pipe(pipe_code=self.pipe_code)

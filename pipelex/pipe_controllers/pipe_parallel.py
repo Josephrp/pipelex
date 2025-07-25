@@ -240,8 +240,8 @@ class PipeParallel(PipeController):
         for sub_pipe in self.parallel_sub_pipes:
             try:
                 get_required_pipe(pipe_code=sub_pipe.pipe_code)
-            except Exception as e:
-                raise PipeDefinitionError(f"PipeParallel'{self.code}'sub-pipe '{sub_pipe.pipe_code}' not found") from e
+            except Exception as exc:
+                raise PipeDefinitionError(f"PipeParallel'{self.code}'sub-pipe '{sub_pipe.pipe_code}' not found") from exc
 
         # 3. Run all sub-pipes in dry mode
         tasks: List[Coroutine[Any, Any, PipeOutput]] = []
@@ -258,10 +258,10 @@ class PipeParallel(PipeController):
 
         try:
             pipe_outputs = await asyncio.gather(*tasks)
-        except Exception as e:
-            log.error(f"Dry run failed: parallel sub-pipe execution failed: {e}")
+        except Exception as exc:
+            log.error(f"Dry run failed: parallel sub-pipe execution failed: {exc}")
             raise DryRunError(
-                message=f"Dry run failed for pipe '{self.code}' (PipeParallel): parallel sub-pipe execution failed: {e}",
+                message=f"Dry run failed for pipe '{self.code}' (PipeParallel): parallel sub-pipe execution failed: {exc}",
                 missing_inputs=[],
                 pipe_code=self.code,
             )

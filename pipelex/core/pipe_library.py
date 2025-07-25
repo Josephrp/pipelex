@@ -85,13 +85,13 @@ class PipeLibrary(RootModel[PipeLibraryRoot], PipeProviderAbstract):
         pipes = self.get_pipes()
 
         # Sort pipes by domain and code
-        ordered_items = sorted(pipes, key=lambda x: (x.domain or "", x.code or ""))
+        ordered_items = sorted(pipes, key=lambda pipe: (pipe.domain or "", pipe.code or ""))
 
         # Create dictionary for return value
         pipes_dict: Dict[str, Dict[str, Dict[str, str]]] = {}
 
         # Group by domain and create separate tables
-        for domain, domain_pipes in groupby(ordered_items, key=lambda x: x.domain):
+        for domain, domain_pipes in groupby(ordered_items, key=lambda pipe: pipe.domain):
             table = Table(
                 title=f"[bold magenta]domain = {domain}[/]",
                 show_header=True,

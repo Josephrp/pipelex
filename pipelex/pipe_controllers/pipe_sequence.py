@@ -187,7 +187,6 @@ class PipeSequence(PipeController):
         if pipe_run_params.run_mode != PipeRunMode.DRY:
             raise PipeRunParamsError(f"PipeSequence._dry_run_controller_pipe() called with run_mode = {pipe_run_params.run_mode} in pipe {self.code}")
         log.debug(f"PipeSequence._dry_run_controller_pipe() called with {self.code=} {pipe_run_params=}")
-        working_memory.pretty_print_summary()
         return await self._run_controller_pipe(
             job_metadata=job_metadata,
             working_memory=working_memory,

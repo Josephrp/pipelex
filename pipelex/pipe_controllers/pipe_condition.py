@@ -332,10 +332,10 @@ class PipeCondition(PipeController):
             # Get required variables to validate the template syntax
             required_variables = pipe_jinja2.required_variables()
             log.debug(f"Expression template is valid, requires variables: {required_variables}")
-        except Exception as e:
-            log.error(f"Dry run failed: invalid expression template: {e}")
+        except Exception as exc:
+            log.error(f"Dry run failed: invalid expression template: {exc}")
             error_msg = (
-                f"Dry run failed for pipe '{self.code}' (PipeCondition): invalid expression template '{self.applied_expression_template}': {e}"
+                f"Dry run failed for pipe '{self.code}' (PipeCondition): invalid expression template '{self.applied_expression_template}': {exc}"
             )
             raise DryRunError(
                 message=error_msg,
@@ -353,8 +353,8 @@ class PipeCondition(PipeController):
             try:
                 get_required_pipe(pipe_code=pipe_code)
                 log.debug(f"Pipe '{pipe_code}' exists and is accessible")
-            except Exception as e:
-                log.error(f"Dry run failed: pipe '{pipe_code}' not found: {e}")
+            except Exception as exc:
+                log.error(f"Dry run failed: pipe '{pipe_code}' not found: {exc}")
                 missing_pipes.append(pipe_code)
 
         if missing_pipes:

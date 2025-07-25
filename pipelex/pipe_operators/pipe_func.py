@@ -110,8 +110,8 @@ class PipeFunc(PipeOperator):
                 )
                 mock_content = WorkingMemoryFactory.create_mock_content(requirement)
 
-        except Exception as e:
-            raise DryRunError(f"Failed to get type hints for function '{self.function_name}' in pipe '{self.code}': {e}")
+        except Exception as exc:
+            raise DryRunError(f"Failed to get type hints for function '{self.function_name}' in pipe '{self.code}': {exc}")
 
         output_stuff = StuffFactory.make_stuff(
             name=output_name,

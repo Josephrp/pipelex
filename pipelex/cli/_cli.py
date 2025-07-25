@@ -106,8 +106,8 @@ def init_libraries(
             typer.echo(f"✅ Successfully initialized pipelex libraries at '{target_path}' (all files overwritten)")
         else:
             typer.echo(f"✅ Successfully initialized pipelex libraries at '{target_path}' (only created non-existing files)")
-    except Exception as e:
-        raise PipelexCLIError(f"Failed to initialize libraries at '{directory}': {e}")
+    except Exception as exc:
+        raise PipelexCLIError(f"Failed to initialize libraries at '{directory}': {exc}")
 
 
 @app.command("init-config")
@@ -128,8 +128,8 @@ def init_config(
     try:
         shutil.copy2(pipelex_template_path, target_config_path)
         typer.echo(f"Created pipelex.toml at {target_config_path}")
-    except Exception as e:
-        raise PipelexCLIError(f"Failed to create pipelex.toml: {e}")
+    except Exception as exc:
+        raise PipelexCLIError(f"Failed to create pipelex.toml: {exc}")
 
 
 @app.command()
@@ -177,8 +177,8 @@ def dry_run_pipe(
         asyncio.run(dry_run_single_pipe(pipe_code))
         get_pipeline_tracker().output_flowchart()
 
-    except Exception as e:
-        typer.echo(f"❌ Error running dry run for pipe '{pipe_code}': {e}")
+    except Exception as exc:
+        typer.echo(f"❌ Error running dry run for pipe '{pipe_code}': {exc}")
         raise typer.Exit(1)
 
 
@@ -191,8 +191,8 @@ def show_config() -> None:
             final_config,
             title=f"Pipelex configuration for project: {config_manager.get_project_name()}",
         )
-    except Exception as e:
-        raise PipelexConfigError(f"Error loading configuration: {e}")
+    except Exception as exc:
+        raise PipelexConfigError(f"Error loading configuration: {exc}")
 
 
 @app.command()
@@ -208,8 +208,8 @@ def list_pipes(
     try:
         get_pipe_provider().pretty_list_pipes()
 
-    except Exception as e:
-        raise PipelexCLIError(f"Failed to list pipes: {e}")
+    except Exception as exc:
+        raise PipelexCLIError(f"Failed to list pipes: {exc}")
 
 
 @app.command("show-pipe")

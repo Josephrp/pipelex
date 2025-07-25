@@ -67,10 +67,10 @@ class PipeImgGen(PipeOperator):
 
     @field_validator("img_gen_prompt_var_name")
     @classmethod
-    def validate_input_var_name_not_provided_as_attribute(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None:
+    def validate_input_var_name_not_provided_as_attribute(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None:
             raise PipeDefinitionError("img_gen_prompt_var_name must be None before input validation")
-        return v
+        return value
 
     @model_validator(mode="after")
     def validate_inputs(self) -> Self:

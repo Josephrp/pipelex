@@ -87,11 +87,11 @@ class TestPipeConditionSimple:
             print("✅ Direct PipeCondition SUCCEEDED completely!")
             pretty_print(pipe_output)
 
-        except DryRunError as e:
+        except DryRunError as exc:
             # If it fails, it should NOT be due to missing inputs
-            assert "missing required inputs" not in str(e)
+            assert "missing required inputs" not in str(exc)
             # Should be due to expression evaluation or other validation
-            assert any(keyword in str(e) for keyword in ["expression", "evaluation", "empty result"])
-            print(f"✅ Direct PipeCondition passed input validation, failed at expression evaluation (expected): {e}")
+            assert any(keyword in str(exc) for keyword in ["expression", "evaluation", "empty result"])
+            print(f"✅ Direct PipeCondition passed input validation, failed at expression evaluation (expected): {exc}")
 
         print("✅ Direct PipeCondition test completed successfully!")
