@@ -139,7 +139,6 @@ def validate(
         typer.Option("--config-folder-path", "-c", help="Relative path to the config folder path"),
     ] = "./pipelex_libraries",
 ) -> None:
-    print("DEBUG: Entered validate()")
     """Run the setup sequence."""
     # Check if pipelex libraries folder exists
     if not is_pipelex_libraries_folder(relative_config_folder_path):

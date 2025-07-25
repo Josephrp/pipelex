@@ -75,7 +75,6 @@ async def dry_run_pipes(pipes: List[PipeAbstract]) -> Dict[str, str]:
             needed_inputs_for_factory = _convert_to_working_memory_format(needed_inputs_spec=needed_inputs)
             log.debug(f"Needed inputs for {pipe.code} converted to working memory format: {needed_inputs_for_factory}")
             working_memory = WorkingMemoryFactory.make_for_dry_run(needed_inputs=needed_inputs_for_factory)
-            working_memory.pretty_print_summary()
 
             # Create a new event loop for this thread
             loop = asyncio.new_event_loop()
