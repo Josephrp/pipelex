@@ -241,9 +241,9 @@ class WorkingMemoryFactory(BaseModel):
 
                     working_memory.add_new_stuff(name=requirement.variable_name, stuff=mock_stuff)
 
-            except Exception as e:
+            except Exception as exc:
                 log.warning(
-                    f"Failed to create mock for '{requirement.variable_name}' ({requirement.concept_code}): {e}. Using fallback text content."
+                    f"Failed to create mock for '{requirement.variable_name}' ({requirement.concept_code}): {exc}. Using fallback text content."
                 )
                 # Create fallback text content
                 fallback_content = TextContent(text=f"DRY RUN: Fallback mock for '{requirement.variable_name}' ({requirement.concept_code})")

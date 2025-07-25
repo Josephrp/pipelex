@@ -68,7 +68,7 @@ class ConceptLibrary(RootModel[ConceptLibraryRoot], ConceptProviderAbstract):
         return list(self.root.values())
 
     def _list_concept_names(self) -> List[str]:
-        return [Concept.extract_domain_and_concept_from_str(c.code)[1] for c in self.list_concepts()]
+        return [Concept.extract_domain_and_concept_from_str(concept.code)[1] for concept in self.list_concepts()]
 
     @override
     def is_concept_code_legal(self, concept_code: str) -> bool:
