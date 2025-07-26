@@ -243,10 +243,19 @@ class StuffFactory:
                 )
             except StuffFactoryError as exc:
                 raise StuffFactoryError(f"Could not make stuff for list of StuffContent '{name}': {exc}") from exc
+        elif isinstance(stuff_content_or_data, str):
+            str_stuff: str = stuff_content_or_data
+            return StuffFactory.make_from_str(
+                str_value=str_stuff,
+                name=name,
+            )
         else:
             stuff_content_dict: Dict[str, Any] = stuff_content_or_data
             try:
-                concept_code = stuff_content_dict["concept_code"]
+                concept_code: Optional[str]
+                concept_code = stuff_content_dict.get("concept") or stuff_content_dict.get("concept_code")
+                if not concept_code:
+                    raise StuffFactoryError("Stuff content data dict is badly formed: no concept code")
                 content_value = stuff_content_dict["content"]
             except KeyError as exc:
                 raise StuffFactoryError(f"Stuff content data dict is badly formed: {exc}") from exc
