@@ -1,5 +1,28 @@
 # Changelog
 
+## [v0.6.10] - 2025-08-02
+
+### Added
+ - New test file for source code manipulation functions (tests/cases/source_code.py)
+ - New integration test for PipeFunc functionality (tests/integration/pipelex/pipes/pipe_operator/pipe_func/test_pipe_func.py)
+ - New package structure file for pipe_func tests (__init__.py)
+ - Simplified input memory creation for native concepts (Text, Image, PDF) in pipeline execution
+ - Added Pipeline requests link to GitHub issue template config
+
+### Changed
+ - Updated pipeline execution documentation and examples to use input_memory instead of working_memory
+ - Renamed pipeline from 'extract_page_contents_from_pdf' to 'ocr_page_contents_from_pdf'
+ - Renamed pipeline from 'extract_page_contents_and_views_from_pdf' to 'ocr_page_contents_and_views_from_pdf'
+ - Updated cocode dependency from version 0.0.6 to 0.0.9
+
+### Fixed
+ - Fixed typo in pipeline description ('aspage views' to 'as full page views')
+
+### Removed
+ - Removed WorkingMemoryFactory and StuffFactory imports from pipeline execution examples
+ - Removed working memory creation code from pipeline examples
+
+
 ## [v0.6.9] - 2025-07-26
 
 ### Changed
