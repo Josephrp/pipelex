@@ -20,7 +20,6 @@ from pipelex.core.pipe_library import PipeLibrary
 from pipelex.exceptions import (
     ConceptLibraryError,
     LibraryError,
-    LibraryParsingError,
     PipeFactoryError,
     PipeLibraryError,
     StaticValidationError,
