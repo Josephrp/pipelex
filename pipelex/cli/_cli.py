@@ -240,6 +240,10 @@ def migrate(
         bool,
         typer.Option("--dry-run", help="Preview changes without applying them"),
     ] = False,
+    backups: Annotated[
+        bool,
+        typer.Option("--backups/--no-backups", help="Create backup files before migration"),
+    ] = True,
 ) -> None:
     """Migrate TOML files to new syntax (Concept = -> definition =)."""
     config_path = Path(relative_config_folder_path)
@@ -259,7 +263,7 @@ def migrate(
         # Use the migration module
         result = migrate_concept_syntax(
             directory=pipelines_dir,
-            create_backups=not dry_run,  # Only create backups when not dry-run
+            create_backups=backups and not dry_run,  # Create backups if enabled and not dry-run
             dry_run=dry_run,
         )
 
@@ -296,13 +300,16 @@ def migrate(
             typer.echo("   Run without --dry-run to apply these changes")
         else:
             # Show migration results
+            create_backups = backups and not dry_run
             for file_path in result.modified_files:
-                backup_path = file_path.with_suffix(".toml.backup")
                 typer.echo(f"✅ Migrated {file_path.relative_to(pipelines_dir)}")
-                typer.echo(f"   Backup saved to {backup_path.name}")
+                if create_backups:
+                    backup_path = file_path.with_suffix(".toml.backup")
+                    typer.echo(f"   Backup saved to {backup_path.name}")
 
             typer.echo(f"\n✅ Migration completed: {result.total_changes} change(s) applied to {result.files_modified} file(s)")
-            typer.echo("   Backup files created with .backup extension")
+            if create_backups:
+                typer.echo("   Backup files created with .backup extension")
             typer.echo("   Run 'pipelex validate' to verify the migration")
 
     except FileNotFoundError as e:
