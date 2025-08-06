@@ -135,11 +135,7 @@ class ConceptFactory:
         else:
             structure_class_name = TextContent.__name__
 
-        refines_list: List[str]
-        if isinstance(concept_blueprint.refines, str):
-            refines_list = [concept_blueprint.refines]
-        else:
-            refines_list = concept_blueprint.refines
+        refines_list = cls.make_refines(domain=domain, refines=concept_blueprint.refines)
 
         return Concept(
             code=ConceptCodeFactory.make_concept_code(domain, code),
