@@ -27,6 +27,12 @@ from pipelex.exceptions import (
 )
 from pipelex.libraries.library_config import LibraryConfig
 from pipelex.libraries.library_manager_abstract import LibraryManagerAbstract
+from pipelex.libraries.pipeline_blueprint import (
+    ConceptBlueprintError,
+    PipeBlueprintError,
+    PipelineBlueprintValidationError,
+    PipelineLibraryBlueprint,
+)
 from pipelex.tools.class_registry_utils import ClassRegistryUtils
 from pipelex.tools.misc.file_utils import find_files_in_dir
 from pipelex.tools.misc.json_utils import deep_update
@@ -171,145 +177,102 @@ class LibraryManager(LibraryManagerAbstract):
 
         # First pass: load all domains
         for toml_path in library_paths:
-            library_dict = load_toml_from_path(path=str(toml_path))
-            library_name = toml_path.stem
-            domain_code = library_dict.get("domain")
-            if domain_code is None:
-                raise LibraryParsingError(
-                    f"Error loading library '{library_name}' which has no domain set at '{toml_path}'. "
-                    "Just write 'domain = \"my_domain\"' at the top of the file."
-                )
-            domain_definition = library_dict.get("definition")
-            system_prompt = library_dict.get("system_prompt")
-            system_prompt_to_structure = library_dict.get("system_prompt_to_structure")
-            prompt_template_to_structure = library_dict.get("prompt_template_to_structure")
+            blueprint = self._load_blueprint_from_file(toml_path)
             domain = Domain(
-                code=domain_code,
-                definition=domain_definition,
-                system_prompt=system_prompt,
-                system_prompt_to_structure=system_prompt_to_structure,
-                prompt_template_to_structure=prompt_template_to_structure,
+                code=blueprint.domain,
+                definition=blueprint.definition,
+                system_prompt=blueprint.system_prompt,
+                system_prompt_to_structure=blueprint.system_prompt_to_structure,
+                prompt_template_to_structure=blueprint.prompt_template_to_structure,
             )
             self.domain_library.add_domain_details(domain=domain)
 
         # Second pass: load all concepts
         for toml_path in library_paths:
             nb_concepts_before = len(self.concept_library.root)
-            library_dict = load_toml_from_path(path=str(toml_path))
-            library_name = toml_path.stem
+            blueprint = self._load_blueprint_from_file(toml_path)
             try:
-                self._load_library_dict(library_name=library_name, library_dict=library_dict, component_type=LibraryComponent.CONCEPT)
-            except ConceptLibraryError as exc:
-                raise LibraryError(f"Error loading concepts from library '{library_name}' at '{toml_path}': {exc}") from exc
+                self._load_concepts_from_blueprint(blueprint=blueprint, file_path=str(toml_path))
+            except ConceptBlueprintError:
+                raise  # Re-raise with detailed error message
             nb_concepts_loaded = len(self.concept_library.root) - nb_concepts_before
             log.verbose(f"Loaded {nb_concepts_loaded} concepts from '{toml_path.name}'")
 
         # Third pass: load all pipes
         for toml_path in library_paths:
             nb_pipes_before = len(self.pipe_library.root)
+            blueprint = self._load_blueprint_from_file(toml_path)
             try:
-                library_dict = load_toml_from_path(path=str(toml_path))
-            except Exception as exc:
-                log.error(f"Failed to load TOML file '{toml_path}': {exc}")
-                continue
-            library_name = toml_path.stem
-            try:
-                self._load_library_dict(library_name=library_name, library_dict=library_dict, component_type=LibraryComponent.PIPE)
-            except StaticValidationError as static_validation_error:
-                static_validation_error.file_path = str(toml_path)
-                log.error(static_validation_error.desc())
-                raise static_validation_error
-            except PipeLibraryError as pipe_library_error:
-                raise LibraryError(
-                    f"Error loading pipes from library '{library_name}' at '{toml_path}': {pipe_library_error}"
-                ) from pipe_library_error
+                self._load_pipes_from_blueprint(blueprint=blueprint, file_path=str(toml_path))
+            except (PipeBlueprintError, StaticValidationError) as pipe_error:
+                if isinstance(pipe_error, StaticValidationError):
+                    pipe_error.file_path = str(toml_path)
+                    log.error(pipe_error.desc())
+                raise pipe_error
             nb_pipes_loaded = len(self.pipe_library.root) - nb_pipes_before
             log.verbose(f"Loaded {nb_pipes_loaded} pipes from '{toml_path.name}'")
 
-    def _load_library_dict(self, library_name: str, library_dict: Dict[str, Any], component_type: LibraryComponent):
-        if domain_code := library_dict.pop("domain", None):
-            # domain is set at the root of the library
-            self._load_library_components_from_recursive_dict(
-                domain_code=domain_code,
-                recursive_dict=library_dict,
-                component_type=component_type,
-            )
-        else:
-            raise LibraryParsingError(f"Library '{library_name}' has no domain set")
+    def _load_blueprint_from_file(self, toml_path: Path) -> PipelineLibraryBlueprint:
+        """Load and validate a pipeline blueprint from a TOML file."""
+        try:
+            toml_data = load_toml_from_path(path=str(toml_path))
+            blueprint = PipelineLibraryBlueprint.model_validate(toml_data)
+            return blueprint
+        except ValidationError as exc:
+            error_msg = format_pydantic_validation_error(exc)
+            raise PipelineBlueprintValidationError(
+                file_path=str(toml_path),
+                validation_error_msg=error_msg,
+            ) from exc
+        except Exception as exc:
+            raise LibraryError(f"Failed to load TOML file '{toml_path}': {exc}") from exc
 
-    def _load_library_components_from_recursive_dict(
-        self,
-        domain_code: str,
-        recursive_dict: Dict[str, Any],
-        component_type: LibraryComponent,
-    ):
-        for key, obj in recursive_dict.items():
-            # root of domain
-            if not isinstance(obj, dict):
-                if not isinstance(obj, str):
-                    raise LibraryError(f"Only a dict or a string is expected at the root of domain but '{domain_code}' got type '{type(obj)}'")
-                if key not in self.allowed_root_attributes:
-                    raise LibraryParsingError(f"Domain '{domain_code}' has an unexpected root attribute '{key}'")
-                continue
-
-            # definitions within the domain
-            obj_dict: Dict[str, Any] = obj
-            if key == component_type:
-                if key == LibraryComponent.CONCEPT:
-                    self._load_concepts(domain_code=domain_code, obj_dict=obj_dict)
-                elif key == LibraryComponent.PIPE:
-                    self._load_pipes(domain_code=domain_code, obj_dict=obj_dict)
+    def _load_concepts_from_blueprint(self, blueprint: PipelineLibraryBlueprint, file_path: str):
+        """Load concepts from a validated blueprint."""
+        for concept_name, concept_data in blueprint.concept.items():
+            try:
+                if isinstance(concept_data, str):
+                    # Simple string definition
+                    concept_from_def = ConceptFactory.make_concept_from_definition_str(
+                        domain_code=blueprint.domain,
+                        concept_str=concept_name,
+                        definition=concept_data,
+                    )
+                    self.concept_library.add_new_concept(concept=concept_from_def)
                 else:
-                    continue
-            elif key not in [LibraryComponent.CONCEPT, LibraryComponent.PIPE]:
-                # Not a concept but a subdomain
-                self._load_library_components_from_recursive_dict(domain_code=domain_code, recursive_dict=obj_dict, component_type=component_type)
-            else:
-                # Skip keys that don't match our criteria
-                continue
-
-    def _load_concepts(self, domain_code: str, obj_dict: Dict[str, Any]):
-        for concept_str, concept_obj in obj_dict.items():
-            if isinstance(concept_obj, str):
-                # we only have a definition
-                definition = concept_obj
-                concept_from_def = ConceptFactory.make_concept_from_definition_str(
-                    domain_code=domain_code,
-                    concept_str=concept_str,
-                    definition=definition,
-                )
-                self.concept_library.add_new_concept(concept=concept_from_def)
-            elif isinstance(concept_obj, dict):
-                # blueprint dict definition
-                concept_obj_dict: Dict[str, Any] = concept_obj
-                try:
+                    # Complex dictionary blueprint - guaranteed by blueprint schema
                     concept_from_dict = ConceptFactory.make_from_details_dict(
-                        domain_code=domain_code, code=concept_str, details_dict=concept_obj_dict
+                        domain_code=blueprint.domain,
+                        code=concept_name,
+                        details_dict=concept_data,
                     )
-                except ValidationError as exc:
-                    error_msg = format_pydantic_validation_error(exc)
-                    raise ConceptLibraryError(f"Error loading concept '{concept_str}' because of: {error_msg}") from exc
-                self.concept_library.add_new_concept(concept=concept_from_dict)
-            else:
-                raise ConceptLibraryError(f"Unexpected type for concept_code '{concept_str}' in domain '{domain_code}': {type(concept_obj)}")
+                    self.concept_library.add_new_concept(concept=concept_from_dict)
+            except ValidationError as exc:
+                error_msg = format_pydantic_validation_error(exc)
+                raise ConceptBlueprintError(
+                    file_path=file_path,
+                    concept_name=concept_name,
+                    error_msg=error_msg,
+                ) from exc
 
-    def _load_pipes(self, domain_code: str, obj_dict: Dict[str, Any]):
-        for pipe_code, pipe_obj in obj_dict.items():
-            if isinstance(pipe_obj, str):
-                # TODO: handle one-liner
-                pass
-            elif isinstance(pipe_obj, dict):
-                pipe_obj_dict: Dict[str, Any] = pipe_obj.copy()
-                try:
-                    pipe = LibraryManager.make_pipe_from_details_dict(
-                        domain_code=domain_code,
-                        pipe_code=pipe_code,
-                        details_dict=pipe_obj_dict,
-                    )
-                except ValidationError as exc:
-                    error_msg = format_pydantic_validation_error(exc)
-                    raise PipeLibraryError(f"Error loading pipe '{pipe_code}' because of: {error_msg}") from exc
+    def _load_pipes_from_blueprint(self, blueprint: PipelineLibraryBlueprint, file_path: str):
+        """Load pipes from a validated blueprint."""
+        for pipe_name, pipe_data in blueprint.pipe.items():
+            try:
+                # pipe_data is guaranteed to be Dict[str, Any] by the blueprint schema
+                pipe = LibraryManager.make_pipe_from_details_dict(
+                    domain_code=blueprint.domain,
+                    pipe_code=pipe_name,
+                    details_dict=pipe_data.copy(),
+                )
                 self.pipe_library.add_new_pipe(pipe=pipe)
+            except ValidationError as exc:
+                error_msg = format_pydantic_validation_error(exc)
+                raise PipeBlueprintError(
+                    file_path=file_path,
+                    pipe_name=pipe_name,
+                    error_msg=error_msg,
+                ) from exc
 
     def validate_libraries(self):
         log.debug("LibraryManager validating libraries")
