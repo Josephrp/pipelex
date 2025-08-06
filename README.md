@@ -39,6 +39,7 @@ Stop reinventing AI workflows from scratch. With Pipelex, your proven methods be
   </p>
 
   <h2 align="center">🚀 See Pipelex in Action</h2>
+  <h3 align="center">From Whiteboard to AI Workflow in less than 5 minutes with no hands</h3>
   <p align="center">
     <a href="https://go.pipelex.com/demo"><img src="https://go.pipelex.com/demo-thumbnail" alt="Pipelex Demo" width="600" style="max-width: 100%; height: auto;"></a>
   </p>
