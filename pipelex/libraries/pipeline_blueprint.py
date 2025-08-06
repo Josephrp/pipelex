@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field
 
+from pipelex.core.concept_factory import ConceptBlueprint
 from pipelex.exceptions import LibraryError
 from pipelex.tools.misc.toml_utils import dict_to_toml_string, save_toml_to_path
 
@@ -52,7 +53,7 @@ class PipelineLibraryBlueprint(BaseModel):
     prompt_template_to_structure: Optional[str] = None
 
     # Concepts section - concept_name -> definition (string) or blueprint (dict)
-    concept: Dict[str, Union[str, Dict[str, Any]]] = Field(default_factory=dict)
+    concept: Dict[str, Union[str, ConceptBlueprint]] = Field(default_factory=dict)
 
     # Pipes section - pipe_name -> blueprint dict
     pipe: Dict[str, Dict[str, Any]] = Field(default_factory=dict)

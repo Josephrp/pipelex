@@ -240,13 +240,13 @@ class LibraryManager(LibraryManagerAbstract):
                     )
                     self.concept_library.add_new_concept(concept=concept_from_def)
                 else:
-                    # Complex dictionary blueprint - guaranteed by blueprint schema
-                    concept_from_dict = ConceptFactory.make_from_details_dict(
-                        domain_code=blueprint.domain,
+                    # Complex ConceptBlueprint - guaranteed by blueprint schema
+                    concept_from_blueprint = ConceptFactory.make_concept_from_blueprint(
+                        domain=blueprint.domain,
                         code=concept_name,
-                        details_dict=concept_data,
+                        concept_blueprint=concept_data,
                     )
-                    self.concept_library.add_new_concept(concept=concept_from_dict)
+                    self.concept_library.add_new_concept(concept=concept_from_blueprint)
             except ValidationError as exc:
                 error_msg = format_pydantic_validation_error(exc)
                 raise ConceptBlueprintError(

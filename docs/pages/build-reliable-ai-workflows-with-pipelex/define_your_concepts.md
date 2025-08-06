@@ -198,15 +198,15 @@ Use the `refines` field to indicate when one concept is a more specific version 
 Document = "A written or printed record"
 
 [concept.Contract]
-Concept = "A legally binding agreement between parties"
+definition = "A legally binding agreement between parties"
 refines = "Document"
 
 [concept.EmploymentContract]
-Concept = "A contract between an employer and employee"
+definition = "A contract between an employer and employee"
 refines = "Contract"
 
 [concept.NonCompeteClause]
-Concept = "A contract clause restricting competitive activities"
+definition = "A contract clause restricting competitive activities"
 refines = "ContractClause"
 ```
 
@@ -238,15 +238,15 @@ domain = "content"
 Text = "Written content in natural language"
 
 [concept.Article]
-Concept = "A written composition on a specific topic"
+definition = "A written composition on a specific topic"
 refines = "Text"
 
 [concept.NewsArticle]
-Concept = "An article reporting current events"
+definition = "An article reporting current events"
 refines = "Article"
 
 [concept.OpinionPiece]
-Concept = "An article expressing personal views"
+definition = "An article expressing personal views"
 refines = "Article"
 
 [pipe.summarize_text]

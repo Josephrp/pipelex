@@ -8,7 +8,7 @@ QuestionAnalysis = "Analysis of a question"
 ThoughtfulAnswerConclusion = "Conclusion of a thoughtful answer"
 
 [concept.ThoughtfulAnswer]
-Concept = "A thoughtful answer to a question"
+definition = "A thoughtful answer to a question"
 structure = "ThoughtfulAnswer"
 refines = "AnswerToAQuestion"
 
