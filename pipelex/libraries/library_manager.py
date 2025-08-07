@@ -326,21 +326,26 @@ class LibraryManager(LibraryManagerAbstract):
                     raise LibraryError(f"TOML validation failed for template file '{template_path}': {exc}") from exc
 
     @classmethod
-    def make_pipe_from_details_dict(
+    def make_pipe_from_blueprint(
         cls,
         domain_code: str,
         pipe_code: str,
         details_dict: Dict[str, Any],
     ) -> PipeAbstract:
-        # first line in the details_dict is the pipe definition in the format:
-        # PipeClassName = "the pipe's definition in natural language"
         pipe_definition: str
         pipe_class_name: str
-        try:
-            pipe_class_name, pipe_definition = next(iter(details_dict.items()))
-            details_dict.pop(pipe_class_name)
-        except StopIteration as details_dict_empty_error:
-            raise PipeFactoryError(f"Pipe '{pipe_code}' could not be created because its blueprint is empty.") from details_dict_empty_error
+        if "type" in details_dict and "definition" in details_dict:
+            # New format: type = "PipeClassName" and definition = "description"
+            pipe_class_name = details_dict.pop("type")  # Remove type from details_dict
+            pipe_definition = details_dict["definition"]  # Keep definition for the factory
+        else:
+            # Fallback to old format for backward compatibility:
+            # PipeClassName = "the pipe's definition in natural language"
+            try:
+                pipe_class_name, pipe_definition = next(iter(details_dict.items()))
+                details_dict.pop(pipe_class_name)
+            except StopIteration as details_dict_empty_error:
+                raise PipeFactoryError(f"Pipe '{pipe_code}' could not be created because its blueprint is empty.") from details_dict_empty_error
 
         # the factory class name for that specific type of Pipe is the pipe class name with "Factory" suffix
         factory_class_name = f"{pipe_class_name}Factory"
@@ -366,3 +371,17 @@ class LibraryManager(LibraryManagerAbstract):
             details_dict=details_dict,
         )
         return pipe_from_blueprint
+
+    @classmethod
+    def make_pipe_from_details_dict(
+        cls,
+        domain_code: str,
+        pipe_code: str,
+        details_dict: Dict[str, Any],
+    ) -> PipeAbstract:
+        # Delegate to the new make_pipe_from_blueprint method
+        return cls.make_pipe_from_blueprint(
+            domain_code=domain_code,
+            pipe_code=pipe_code,
+            details_dict=details_dict,
+        )

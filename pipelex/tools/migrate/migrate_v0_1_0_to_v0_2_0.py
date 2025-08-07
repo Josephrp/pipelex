@@ -3,25 +3,38 @@
 import re
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List, Match, NamedTuple
+from typing import Any, ClassVar, Dict, List, Match
 
-
-class MigrationResult(NamedTuple):
-    """Result of migration operation."""
-
-    files_processed: int
-    files_modified: int
-    total_changes: int
-    modified_files: List[Path]
-    errors: List[str]
+from pipelex.tools.migrate.migration_result import MigrationResult
 
 
 class TomlMigrator:
-    """Handles migration from Concept = to definition = syntax in TOML files."""
+    """Handles migration from Concept = to definition = and PipeClassName = to type/definition syntax in TOML files."""
+
+    # Known pipe class names based on the factory classes in the codebase
+    PIPE_CLASS_NAMES: ClassVar[set[str]] = {
+        "PipeLLM",
+        "PipeOcr",
+        "PipeImgGen",
+        "PipeFunc",
+        "PipeJinja2",
+        "PipeLLMPrompt",
+        "PipeSequence",
+        "PipeBatch",
+        "PipeCondition",
+        "PipeParallel",
+    }
 
     def __init__(self):
         # Pattern to match "Concept = " within concept sections
         self.concept_pattern = re.compile(r"^(\s*)(Concept)(\s*=\s*)(.*)$", re.MULTILINE)
+
+        # Pattern to match pipe class name assignments: PipeClassName = "description"
+        pipe_classes = "|".join(self.PIPE_CLASS_NAMES)
+        self.pipe_pattern = re.compile(
+            rf"^(\s*)({pipe_classes})(\s*=\s*)(\"[^\"]*\"|'[^']*')(\s*)$",
+            re.MULTILINE,
+        )
 
     def find_toml_files(self, directory: Path) -> List[Path]:
         """Find all TOML files in directory and subdirectories."""
@@ -43,19 +56,28 @@ class TomlMigrator:
         return (triple_double_quotes % 2 == 1) or (triple_single_quotes % 2 == 1)
 
     def needs_migration(self, content: str) -> bool:
-        """Check if content contains old Concept = syntax that should be migrated."""
-        matches = list(self.concept_pattern.finditer(content))
-        for match in matches:
+        """Check if content contains old Concept = or PipeClassName = syntax that should be migrated."""
+        # Check concept patterns
+        concept_matches = list(self.concept_pattern.finditer(content))
+        for match in concept_matches:
             if not self._is_line_inside_multiline_string(content, match.start()):
                 return True
+
+        # Check pipe patterns
+        pipe_matches = list(self.pipe_pattern.finditer(content))
+        for match in pipe_matches:
+            if not self._is_line_inside_multiline_string(content, match.start()):
+                return True
+
         return False
 
     def get_migration_preview(self, content: str) -> List[Dict[str, Any]]:
         """Get preview of changes that would be made."""
         changes: List[Dict[str, Any]] = []
-        matches = list(self.concept_pattern.finditer(content))
 
-        for match in matches:
+        # Handle concept migrations
+        concept_matches = list(self.concept_pattern.finditer(content))
+        for match in concept_matches:
             # Skip if this match is inside a multiline string
             if self._is_line_inside_multiline_string(content, match.start()):
                 continue
@@ -66,21 +88,62 @@ class TomlMigrator:
 
             changes.append({"line_number": line_num, "old_line": old_line.strip(), "new_line": new_line.strip()})
 
+        # Handle pipe migrations
+        pipe_matches = list(self.pipe_pattern.finditer(content))
+        for match in pipe_matches:
+            # Skip if this match is inside a multiline string
+            if self._is_line_inside_multiline_string(content, match.start()):
+                continue
+
+            line_num = content[: match.start()].count("\n") + 1
+            leading_whitespace = match.group(1)
+            pipe_class_name = match.group(2)
+            definition_value = match.group(4)
+
+            old_line = match.group(0)
+            type_line = f'{leading_whitespace}type = "{pipe_class_name}"'
+            definition_line = f"{leading_whitespace}definition = {definition_value}"
+            new_line = f"{type_line}\\n{definition_line}"
+
+            changes.append({"line_number": line_num, "old_line": old_line.strip(), "new_line": new_line})
+
         return changes
 
     def migrate_content(self, content: str) -> str:
         """Migrate content from old to new syntax."""
 
-        def replacement_function(match: Match[str]) -> str:
+        def concept_replacement_function(match: Match[str]) -> str:
             # Check if this match is inside a multiline string
             if self._is_line_inside_multiline_string(content, match.start()):
                 # Return the original text unchanged
                 return match.group(0)
             else:
-                # Apply the normal replacement
+                # Apply the normal replacement: Concept = -> definition =
                 return f"{match.group(1)}definition{match.group(3)}{match.group(4)}"
 
-        return self.concept_pattern.sub(replacement_function, content)
+        def pipe_replacement_function(match: Match[str]) -> str:
+            # Check if this match is inside a multiline string
+            if self._is_line_inside_multiline_string(content, match.start()):
+                # Return the original text unchanged
+                return match.group(0)
+            else:
+                # Apply pipe replacement: PipeClassName = "desc" -> type = "PipeClassName"\ndefinition = "desc"
+                leading_whitespace = match.group(1)
+                pipe_class_name = match.group(2)
+                definition_value = match.group(4)
+                trailing_whitespace = match.group(5)
+
+                type_line = f'{leading_whitespace}type = "{pipe_class_name}"'
+                definition_line = f"{leading_whitespace}definition = {definition_value}"
+
+                return f"{type_line}\n{definition_line}{trailing_whitespace}"
+
+        # Apply concept migrations first
+        migrated_content = self.concept_pattern.sub(concept_replacement_function, content)
+        # Then apply pipe migrations
+        migrated_content = self.pipe_pattern.sub(pipe_replacement_function, migrated_content)
+
+        return migrated_content
 
     def migrate_file(self, file_path: Path, create_backup: bool = True) -> int:
         """
@@ -171,9 +234,13 @@ class TomlMigrator:
             except Exception as e:
                 errors.append(f"Error processing {toml_file}: {e}")
 
-        return MigrationResult(
-            files_processed=files_processed, files_modified=files_modified, total_changes=total_changes, modified_files=modified_files, errors=errors
-        )
+        result = MigrationResult()
+        result.files_processed = files_processed
+        result.files_modified = files_modified
+        result.total_changes = total_changes
+        result.modified_files = modified_files
+        result.errors = errors
+        return result
 
 
 def migrate_concept_syntax(directory: Path, create_backups: bool = True, dry_run: bool = False) -> MigrationResult:

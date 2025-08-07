@@ -230,7 +230,7 @@ def show_pipe(
     pretty_print(pipe, title=f"Pipe '{pipe_code}'")
 
 
-@app.command()
+@app.command("migrate")
 def migrate(
     relative_config_folder_path: Annotated[
         str,
@@ -245,7 +245,7 @@ def migrate(
         typer.Option("--backups/--no-backups", help="Create backup files before migration"),
     ] = True,
 ) -> None:
-    """Migrate TOML files to new syntax (Concept = -> definition =)."""
+    """Migrate TOML files to new syntax (Concept = -> definition = and PipeClassName = -> type/definition)."""
     config_path = Path(relative_config_folder_path)
 
     # Check if it's a pipelex libraries folder structure or just a directory with TOML files
@@ -260,7 +260,7 @@ def migrate(
         raise typer.Exit(1)
 
     try:
-        # Use the migration module
+        # Use the migration module (now handles both concepts and pipes)
         result = migrate_concept_syntax(
             directory=pipelines_dir,
             create_backups=backups and not dry_run,  # Create backups if enabled and not dry-run
