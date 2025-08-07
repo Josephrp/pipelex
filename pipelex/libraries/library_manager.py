@@ -339,10 +339,23 @@ class LibraryManager(LibraryManagerAbstract):
             pipe_class_name = details_dict.pop("type")  # Remove type from details_dict
             pipe_definition = details_dict["definition"]  # Keep definition for the factory
         else:
+            # TODO(DEPRECATED_REMOVAL): Remove old pipe syntax support - scheduled for removal in v0.3.0
             # Fallback to old format for backward compatibility:
             # PipeClassName = "the pipe's definition in natural language"
             try:
                 pipe_class_name, pipe_definition = next(iter(details_dict.items()))
+                log.warning(f"""Pipe '{pipe_code}' uses deprecated syntax. Please migrate to new format:
+replace this syntax:
+```
+{pipe_class_name} = "{pipe_definition}"
+```
+by this:
+```
+type = "{pipe_class_name}"
+definition = "{pipe_definition}"
+```
+Old syntax will be removed in v0.3.0.
+                            """)
                 details_dict.pop(pipe_class_name)
             except StopIteration as details_dict_empty_error:
                 raise PipeFactoryError(f"Pipe '{pipe_code}' could not be created because its blueprint is empty.") from details_dict_empty_error
