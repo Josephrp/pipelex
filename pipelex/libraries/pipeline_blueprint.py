@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional, Union
 from pydantic import BaseModel, Field
 
 from pipelex.core.concept_factory import ConceptBlueprint
+from pipelex.core.stuff_content import StructuredContent
 from pipelex.exceptions import LibraryError
 from pipelex.tools.misc.toml_utils import dict_to_toml_string, save_toml_to_path
 
@@ -42,7 +43,7 @@ class PipeStepBlueprint(BaseModel):
     result: str
 
 
-class PipelineLibraryBlueprint(BaseModel):
+class PipelineLibraryBlueprint(StructuredContent):
     """Complete blueprint of a pipeline library TOML file."""
 
     # Domain information (required)

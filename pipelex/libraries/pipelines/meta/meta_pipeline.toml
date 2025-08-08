@@ -1,0 +1,31 @@
+domain = "meta"
+definition = "Meta domain is the domain of pipelines about pipelines"
+
+[concept]
+PipelineLibraryBlueprint = "Details enabling to create a pipeline"
+ConceptBlueprint = "Details enabling to create a concept"
+PipeBlueprint = "Details enabling to create a pipe"
+
+[pipe]
+
+[pipe.generate_pipeline_blueprint]
+PipeLLM = "Generate a PipelineLibraryBlueprint from natural language requirements"
+inputs = { requirements = "Text" }
+output = "PipelineLibraryBlueprint"
+structuring_method = "preliminary_text"
+prompt_template = """
+You are a Pipelex pipeline architect. Convert the following requirements into a minimal, correct PipelineLibraryBlueprint object.
+
+Rules:
+- Only fill fields that exist on the PipelineLibraryBlueprint schema: domain, definition (optional), concept, pipe.
+- In concept, map ConceptName (PascalCase, singular) to its natural language definition string. Do not redefine native concepts (Text, Image, PDF, TextAndImages, Number, Page).
+- In pipe, define at least one pipe that accomplishes the main goal implied by the requirements. Use operators/controllers supported by Pipelex (e.g., PipeLLM, PipeOcr, PipeSequence...).
+- For pipe definitions, use the concise form (e.g., `PipeLLM = "..."`, then `inputs = { ... }`, `output = "..."`).
+- Ensure all input variables referenced in prompts are listed in the pipe `inputs`.
+- Keep domain code short, lowercase, and meaningful.
+
+Requirements:
+
+@requirements
+"""
+
