@@ -8,6 +8,7 @@ import typer
 from pipelex import pretty_print
 from pipelex.exceptions import PipelexCLIError
 from pipelex.libraries.pipeline_blueprint import PipelineLibraryBlueprint
+from pipelex.pipe_works.pipe_dry import dry_run_pipe_codes
 from pipelex.pipelex import Pipelex
 from pipelex.pipeline.execute import execute_pipeline
 from pipelex.tools.misc.file_utils import load_text_from_path
@@ -36,6 +37,7 @@ def do_build_blueprint(
     requirements: Optional[str],
     requirements_file: Optional[str],
     output_path: Optional[str],
+    validate: bool,
 ) -> None:
     # Initialize Pipelex (loads libraries and pipes)
     Pipelex.make(relative_config_folder_path=relative_config_folder_path, from_file=False)
@@ -49,13 +51,19 @@ def do_build_blueprint(
     # Generate blueprint
     blueprint = asyncio.run(_generate_blueprint_async(requirements_text=requirements_text))
 
+    pretty_print(blueprint, title="Pipeline Blueprint")
+    pretty_print(blueprint.to_toml_dict(), title="Pipeline Blueprint (TOML)")
+
     # Save or display result
-    if output_path:
-        blueprint.save_to_file(output_path)
-        typer.echo(f"✅ Blueprint saved to '{output_path}'")
-    else:
-        pretty_print(blueprint, title="Pipeline Blueprint")
-        pretty_print(blueprint.to_toml_dict(), title="Pipeline Blueprint (TOML)")
+    output_path = output_path or "pipelex/libraries/pipelines/temp/generated_blueprint.toml"
+    blueprint.save_to_file(output_path)
+    typer.echo(f"✅ Blueprint saved to '{output_path}'")
+
+    if validate:
+        generated_pipe_codes = list(blueprint.pipe.keys())
+        if not generated_pipe_codes:
+            raise PipelexCLIError("No pipe found in generated blueprint to validate")
+        asyncio.run(dry_run_pipe_codes(pipe_codes=generated_pipe_codes))
 
 
 # Typer group for build commands
@@ -76,6 +84,10 @@ def build_blueprint_cmd(
         Optional[str],
         typer.Option("--output", "-o", help="Path to save the generated TOML blueprint (optional)"),
     ] = None,
+    validate: Annotated[
+        bool,
+        typer.Option("--validate", help="Dry-run the first generated pipe from the blueprint"),
+    ] = False,
     relative_config_folder_path: Annotated[
         str,
         typer.Option(
@@ -91,6 +103,7 @@ def build_blueprint_cmd(
             requirements=requirements,
             requirements_file=requirements_file,
             output_path=output_path,
+            validate=validate,
         )
     except Exception as exc:
         typer.echo(f"❌ Error: {exc}")
