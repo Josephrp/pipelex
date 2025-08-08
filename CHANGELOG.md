@@ -156,7 +156,7 @@ Simplified input memory:
 ### Documentation & Development Experience
 
 - **Cursor Rules Enhancement**: Comprehensive pipe controller documentation covering `PipeSequence`, `PipeCondition`, `PipeBatch`, and `PipeParallel`, improved PipeOperator documentation for `PipeLLM`, `PipeOCR`
-- **Pipeline Validation CLI**: Enhanced `pipelex validate` command with better error reporting and validation coverage
+- **Pipeline Validation CLI**: Enhanced `pipelex validate all` command with better error reporting and validation coverage
 - **Improved Error Messages**: Better formatting and context for pipeline configuration errors
 
 ### Changed
@@ -473,7 +473,7 @@ is_reporting_enabled = true
 - Use a minimum version for `uv` instead of a fixed version
 - Implement `AGENTS.md` for Codex
 - Add tests for some of the `tools.misc`
-- pipelex cli: Rename `pipelex run-setup` to `pipelex validate`
+- pipelex cli: Rename `pipelex run-setup` to `pipelex validate all`
 
 ## [v0.2.8] - 2025-05-28
 

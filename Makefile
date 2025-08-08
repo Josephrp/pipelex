@@ -153,7 +153,7 @@ update: env
 
 validate: env
 	$(call PRINT_TITLE,"Running setup sequence")
-	$(VENV_PIPELEX) validate -c pipelex/libraries
+	$(VENV_PIPELEX) validate all -c pipelex/libraries
 
 build: env
 	$(call PRINT_TITLE,"Building the wheels")

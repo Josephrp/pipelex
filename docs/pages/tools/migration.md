@@ -57,7 +57,7 @@ If you prefer to migrate manually or need to handle special cases:
 
 1. **Locate your TOML files**: Find all pipeline library files (typically in your configured pipelines directory)
 2. **Update concept definitions**: Change `Concept =` to `definition =` in all `[concept.ConceptName]` sections
-3. **Validate syntax**: Run `pipelex validate` to ensure your files are correctly formatted
+3. **Validate syntax**: Run `pipelex validate all` to ensure your files are correctly formatted
 
 ### Examples
 
@@ -101,7 +101,7 @@ After migration, validate your pipeline files:
 
 ```bash
 # Validate all pipeline files
-pipelex validate
+pipelex validate all
 
 # Run a specific pipeline to test
 pipelex run your-pipeline-name
@@ -185,7 +185,7 @@ If you prefer to migrate manually:
    - Replace `PipeClassName = "description"` with:
      - `type = "PipeClassName"`
      - `definition = "description"`
-3. **Validate syntax**: Run `pipelex validate` to ensure your files are correctly formatted
+3. **Validate syntax**: Run `pipelex validate all` to ensure your files are correctly formatted
 
 ### Examples
 
@@ -247,7 +247,7 @@ After migration, validate your pipeline files:
 
 ```bash
 # Validate all pipeline files
-pipelex validate
+pipelex validate all
 
 # Run a specific pipeline to test
 pipelex run your-pipeline-name

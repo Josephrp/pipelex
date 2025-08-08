@@ -14,7 +14,7 @@ For illustration purposes, let's build **a character generator**. Each example r
 ### Write your first pipeline
 
 First, create a `.toml` library file in the `pipelex_libraries/pipelines` directory to store your pipe definition.
-Run `pipelex init-libraries` to create this directory if it doesn't exist. For now, keep all your pipeline definitions inside that folder only.
+Run `pipelex init libraries` to create this directory if it doesn't exist. For now, keep all your pipeline definitions inside that folder only.
 
 `character.toml`
 ```toml

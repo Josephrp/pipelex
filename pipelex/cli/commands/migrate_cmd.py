@@ -74,7 +74,7 @@ def do_migrate(
             typer.echo(f"\n✅ Migration completed: {result.total_changes} change(s) applied to {result.files_modified} file(s)")
             if create_backups:
                 typer.echo("   Backup files created with .backup extension")
-            typer.echo("   Run 'pipelex validate' to verify the migration")
+            typer.echo("   Run 'pipelex validate all' to verify the migration")
     except FileNotFoundError as exc:
         typer.echo(f"❌ {exc}")
         raise typer.Exit(1)
