@@ -25,7 +25,7 @@ def do_init_libraries(directory: str = ".", overwrite: bool = False) -> None:
         else:
             typer.echo(f"✅ Successfully initialized pipelex libraries at '{target_path}' (only created non-existing files)")
     except Exception as exc:
-        raise PipelexCLIError(f"Failed to initialize libraries at '{directory}': {exc}")
+        raise PipelexCLIError(f"Failed to initialize libraries at '{directory}': {exc}") from exc
 
 
 def do_init_config(reset: bool = False) -> None:
@@ -41,7 +41,7 @@ def do_init_config(reset: bool = False) -> None:
         shutil.copy2(pipelex_template_path, target_config_path)
         typer.echo(f"Created pipelex.toml at {target_config_path}")
     except Exception as exc:
-        raise PipelexCLIError(f"Failed to create pipelex.toml: {exc}")
+        raise PipelexCLIError(f"Failed to create pipelex.toml: {exc}") from exc
 
 
 # Typer group for init commands
