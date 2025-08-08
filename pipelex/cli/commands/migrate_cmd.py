@@ -11,25 +11,31 @@ from .common import is_pipelex_libraries_folder
 
 
 def do_migrate(
-    relative_config_folder_path: str = "./pipelex_libraries",
+    target_path: str = "./pipelex_libraries",
     dry_run: bool = False,
     backups: bool = True,
 ) -> None:
-    """Migrate TOML files to new syntax (Concept = -> definition = and PipeClassName = -> type/definition)."""
-    config_path = Path(relative_config_folder_path)
+    """Migrate TOML files to new syntax (Concept = -> definition = and PipeClassName = -> type/definition).
 
-    if is_pipelex_libraries_folder(relative_config_folder_path):
-        pipelines_dir = config_path / "pipelines"
+    The path can be:
+    - A Pipelex libraries folder (we'll use its `pipelines` subfolder)
+    - A directory containing TOML files
+    - A single TOML file
+    """
+    config_path = Path(target_path)
+
+    if is_pipelex_libraries_folder(target_path):
+        pipelines_dir_or_file = config_path / "pipelines"
     else:
-        pipelines_dir = config_path
+        pipelines_dir_or_file = config_path
 
-    if not pipelines_dir.exists():
-        typer.echo(f"❌ Directory not found at '{pipelines_dir}'")
+    if not pipelines_dir_or_file.exists():
+        typer.echo(f"❌ Path not found at '{pipelines_dir_or_file}'")
         raise typer.Exit(1)
 
     try:
         result = migrate_concept_syntax(
-            directory=pipelines_dir,
+            directory=pipelines_dir_or_file,
             create_backups=backups and not dry_run,
             dry_run=dry_run,
         )
@@ -49,13 +55,19 @@ def do_migrate(
 
         if dry_run:
             migrator = TomlMigrator()
+            # For display, if a single file path was provided, show relative to its parent
+            base_for_print = pipelines_dir_or_file if pipelines_dir_or_file.is_dir() else pipelines_dir_or_file.parent
             for file_path in result.modified_files:
                 try:
                     with open(file_path, "r", encoding="utf-8") as f:
                         content = f.read()
 
                     changes = migrator.get_migration_preview(content)
-                    typer.echo(f"\n📄 {file_path.relative_to(pipelines_dir)}:")
+                    try:
+                        rel = file_path.relative_to(base_for_print)
+                    except Exception:
+                        rel = Path(file_path.name)
+                    typer.echo(f"\n📄 {rel}:")
                     for change in changes:
                         typer.echo(f"  Line {change['line_number']}: {change['old_line']} → {change['new_line']}")
                 except Exception as exc:
@@ -65,8 +77,13 @@ def do_migrate(
             typer.echo("   Run without --dry-run to apply these changes")
         else:
             create_backups = backups and not dry_run
+            base_for_print = pipelines_dir_or_file if pipelines_dir_or_file.is_dir() else pipelines_dir_or_file.parent
             for file_path in result.modified_files:
-                typer.echo(f"✅ Migrated {file_path.relative_to(pipelines_dir)}")
+                try:
+                    rel = file_path.relative_to(base_for_print)
+                except Exception:
+                    rel = Path(file_path.name)
+                typer.echo(f"✅ Migrated {rel}")
                 if create_backups:
                     backup_path = file_path.with_suffix(".toml.backup")
                     typer.echo(f"   Backup saved to {backup_path.name}")
@@ -89,10 +106,15 @@ migrate_app = typer.Typer(help="Migration commands")
 
 @migrate_app.command("run")
 def migrate_cmd(
-    relative_config_folder_path: Annotated[
-        str, typer.Option("--config-folder-path", "-c", help="Relative path to the config folder path")
+    target_path: Annotated[
+        str,
+        typer.Option(
+            "--path",
+            "-p",
+            help=("Path to Pipelex libraries folder (uses its pipelines), a directory of TOML files, or a single TOML file"),
+        ),
     ] = "./pipelex_libraries",
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview changes without applying them")] = False,
     backups: Annotated[bool, typer.Option("--backups/--no-backups", help="Create backup files before migration")] = True,
 ) -> None:
-    do_migrate(relative_config_folder_path=relative_config_folder_path, dry_run=dry_run, backups=backups)
+    do_migrate(target_path=target_path, dry_run=dry_run, backups=backups)

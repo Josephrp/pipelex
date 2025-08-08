@@ -247,13 +247,68 @@ def migrate_concept_syntax(directory: Path, create_backups: bool = True, dry_run
     """
     Convenience function to migrate TOML files from Concept = to definition = syntax.
 
+    This function accepts either a directory (the historical behavior) or a path to a single TOML file.
+
     Args:
-        directory: Directory containing TOML files to migrate
-        create_backups: Whether to create backup files before migration
+        directory: Path to a directory containing TOML files to migrate, or a single TOML file
+        create_backups: Whether to create backup files before migration (ignored in dry-run)
         dry_run: If True, only preview changes without applying them
 
     Returns:
         MigrationResult with migration statistics
     """
     migrator = TomlMigrator()
-    return migrator.migrate_directory(directory, create_backups, dry_run)
+
+    # Support passing a single TOML file path in addition to a directory
+    input_path = directory
+    if input_path.is_file():
+        result = MigrationResult()
+        result.files_processed = 1
+
+        if input_path.suffix.lower() != ".toml":
+            result.errors.append(f"Provided file is not a .toml file: {input_path}")
+            return result
+
+        try:
+            with open(input_path, "r", encoding="utf-8") as f:
+                content = f.read()
+        except Exception as e:
+            result.errors.append(f"Failed to read file {input_path}: {e}")
+            return result
+
+        if not migrator.needs_migration(content):
+            return result
+
+        # Count only concept changes for consistency with directory migration statistics
+        def _is_inside_multiline_string(text: str, position: int) -> bool:
+            """Local helper to check if a position is inside a TOML multiline string."""
+            text_before = text[:position]
+            triple_double_quotes = text_before.count('"""')
+            triple_single_quotes = text_before.count("'''")
+            return (triple_double_quotes % 2 == 1) or (triple_single_quotes % 2 == 1)
+
+        matches = list(migrator.concept_pattern.finditer(content))
+        changes_count = 0
+        for match in matches:
+            if not _is_inside_multiline_string(content, match.start()):
+                changes_count += 1
+
+        if dry_run:
+            result.files_modified = 1
+            result.total_changes = changes_count
+            result.modified_files.append(input_path)
+            return result
+
+        # Perform actual migration
+        try:
+            actual_changes = migrator.migrate_file(input_path, create_backup=create_backups)
+            result.files_modified = 1
+            result.total_changes = actual_changes
+            result.modified_files.append(input_path)
+        except Exception as e:
+            result.errors.append(f"Error processing {input_path}: {e}")
+
+        return result
+
+    # Default: treat as directory (existing behavior)
+    return migrator.migrate_directory(input_path, create_backups, dry_run)
