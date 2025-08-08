@@ -9,7 +9,8 @@ PipeBlueprint = "Details enabling to create a pipe"
 [pipe]
 
 [pipe.generate_pipeline_blueprint]
-PipeLLM = "Generate a PipelineLibraryBlueprint from natural language requirements"
+type = "PipeLLM"
+definition = "Generate a PipelineLibraryBlueprint from natural language requirements"
 inputs = { requirements = "Text" }
 output = "PipelineLibraryBlueprint"
 structuring_method = "preliminary_text"

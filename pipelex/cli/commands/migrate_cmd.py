@@ -115,6 +115,6 @@ def migrate_cmd(
         ),
     ] = "./pipelex_libraries",
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview changes without applying them")] = False,
-    backups: Annotated[bool, typer.Option("--backups/--no-backups", help="Create backup files before migration")] = True,
+    backups: Annotated[bool, typer.Option("--backups/--no-backups", help="Create backup files before migration")] = False,
 ) -> None:
     do_migrate(target_path=target_path, dry_run=dry_run, backups=backups)
