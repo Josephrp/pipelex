@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Annotated, Optional
+from typing import Annotated, Any, Dict, Optional, cast
 
 import typer
+from pydantic import ValidationError
 
 from pipelex import pretty_print
-from pipelex.exceptions import PipelexCLIError
+from pipelex.exceptions import PipeDefinitionError, PipelexCLIError
+from pipelex.hub import get_library_manager
+from pipelex.libraries.library_manager import LibraryManager
 from pipelex.libraries.pipeline_blueprint import PipelineLibraryBlueprint
 from pipelex.pipe_works.pipe_dry import dry_run_pipe_codes
 from pipelex.pipelex import Pipelex
 from pipelex.pipeline.execute import execute_pipeline
 from pipelex.tools.misc.file_utils import load_text_from_path
+from pipelex.tools.typing.pydantic_utils import format_pydantic_validation_error
 
 
 def _load_requirements_text(requirements: Optional[str], requirements_file: Optional[str]) -> str:
@@ -60,10 +64,46 @@ def do_build_blueprint(
     typer.echo(f"✅ Blueprint saved to '{output_path}'")
 
     if validate:
+        try:
+            _load_pipes_from_generated_blueprint(blueprint=blueprint)
+        except PipeDefinitionError as exc:
+            raise PipelexCLIError(f"Failed to load pipes from generated blueprint at '{output_path}': {exc}") from exc
+
         generated_pipe_codes = list(blueprint.pipe.keys())
         if not generated_pipe_codes:
             raise PipelexCLIError("No pipe found in generated blueprint to validate")
         asyncio.run(dry_run_pipe_codes(pipe_codes=generated_pipe_codes))
+
+
+def _load_pipes_from_generated_blueprint(blueprint: PipelineLibraryBlueprint) -> None:
+    """Instantiate and register all pipes from a generated PipelineLibraryBlueprint.
+
+    This constructs the appropriate typed PipeBlueprint for each pipe entry and
+    uses LibraryManager.load_pipe_from_blueprint to create the Pipe, then adds it
+    to the in-memory PipeLibrary so that validation can run against them.
+    """
+    library_manager = cast(LibraryManager, get_library_manager())
+    domain_code = blueprint.domain
+
+    for pipe_code, details in blueprint.pipe.items():
+        details_dict: Dict[str, Any] = details.copy()
+
+        # Build the concrete PipeBlueprint via LibraryManager helper
+        try:
+            pipe_blueprint = LibraryManager.make_pipe_blueprint_from_details(
+                domain_code=domain_code,
+                details_dict=details_dict,
+            )
+        except ValidationError as exc:
+            error_msg = format_pydantic_validation_error(exc=exc)
+            raise PipeDefinitionError(f"Failed to build pipe blueprint for pipe '{pipe_code}': {error_msg}") from exc
+
+        # Create pipe and register in library
+        pipe = LibraryManager.load_pipe_from_blueprint(
+            pipe_code=pipe_code,
+            pipe_blueprint=pipe_blueprint,
+        )
+        library_manager.pipe_library.add_new_pipe(pipe=pipe)
 
 
 # Typer group for build commands
@@ -97,14 +137,22 @@ def build_blueprint_cmd(
         ),
     ] = "./pipelex_libraries",
 ) -> None:
-    try:
-        do_build_blueprint(
-            relative_config_folder_path=relative_config_folder_path,
-            requirements=requirements,
-            requirements_file=requirements_file,
-            output_path=output_path,
-            validate=validate,
-        )
-    except Exception as exc:
-        typer.echo(f"❌ Error: {exc}")
-        raise typer.Exit(1)
+    # try:
+    #     do_build_blueprint(
+    #         relative_config_folder_path=relative_config_folder_path,
+    #         requirements=requirements,
+    #         requirements_file=requirements_file,
+    #         output_path=output_path,
+    #         validate=validate,
+    #     )
+    # except Exception as exc:
+    #     typer.echo(f"❌ Error: {exc}")
+    #     raise typer.Exit(1)
+
+    do_build_blueprint(
+        relative_config_folder_path=relative_config_folder_path,
+        requirements=requirements,
+        requirements_file=requirements_file,
+        output_path=output_path,
+        validate=validate,
+    )
