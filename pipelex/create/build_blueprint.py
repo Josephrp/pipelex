@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from typing import Annotated, Any, Dict, Optional, cast
 
 import typer
@@ -17,6 +18,8 @@ from pipelex.pipe_works.pipe_dry import dry_run_pipe_codes
 from pipelex.pipelex import Pipelex
 from pipelex.pipeline.execute import execute_pipeline
 from pipelex.tools.misc.file_utils import load_text_from_path
+from pipelex.tools.misc.json_utils import save_as_json_to_path
+from pipelex.tools.misc.toml_utils import dict_to_toml_string, save_toml_to_path
 from pipelex.tools.typing.pydantic_utils import format_pydantic_validation_error
 
 
@@ -36,11 +39,12 @@ async def do_build_blueprint(
     )
     blueprint = pipe_output.main_stuff_as(content_type=PipelineLibraryBlueprint)
     pretty_print(blueprint, title="Pipeline Blueprint")
-    pretty_print(blueprint.to_toml_dict(), title="Pipeline Blueprint (TOML)")
 
     # Save or display result
     output_path = output_path or "pipelex/libraries/pipelines/temp/generated_blueprint.toml"
-    blueprint.save_to_file(output_path)
+    save_toml_to_path(blueprint.smart_dump(), output_path)
+    json_path = output_path.replace(Path(output_path).suffix, ".json")
+    save_as_json_to_path(blueprint.smart_dump(), json_path)
     typer.echo(f"✅ Blueprint saved to '{output_path}'")
 
     if validate:
