@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from kajson import kajson
 from pydantic import BaseModel
@@ -8,7 +8,7 @@ from pipelex.tools.exceptions import ToolException
 from pipelex.tools.misc.file_utils import save_text_to_path
 from pipelex.tools.typing.pydantic_utils import CustomBaseModel
 
-JsonContent = Union[Dict[Any, Any], List[Any]]
+JsonContent = Union[Dict[str, Any], List[Any]]
 
 
 class ArgumentTypeError(ToolException):
@@ -182,7 +182,7 @@ def deep_update(target_dict: Dict[str, Any], updates: Dict[str, Any]):
             target_dict[key] = value
 
 
-def remove_none_values(json_content: JsonContent) -> JsonContent:
+def remove_none_values(json_content: JsonContent | Any) -> JsonContent | Any:
     """
     Recursively removes all None values from a JSON-compatible data structure.
 
@@ -214,10 +214,15 @@ def remove_none_values(json_content: JsonContent) -> JsonContent:
         }
     """
     if isinstance(json_content, dict):
-        json_content = cast(Dict[str, Any], json_content)
-        return {key: remove_none_values(json_content=value) for key, value in json_content.items() if value is not None}
-    else:
+        cleaned_dict: Dict[str, Any] = {}
+        for key, value in json_content.items():
+            if value is not None:
+                cleaned_dict[key] = remove_none_values(json_content=value)
+        return cleaned_dict
+    elif isinstance(json_content, list):
         return [remove_none_values(item) for item in json_content]
+    else:
+        return json_content
 
 
 def purify_json(
