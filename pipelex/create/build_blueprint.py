@@ -8,7 +8,7 @@ import typer
 from pydantic import ValidationError
 
 from pipelex import pretty_print
-from pipelex.create.helpers import get_rules
+from pipelex.create.helpers import get_pipeline_creation_rules
 from pipelex.exceptions import PipeDefinitionError, PipelexCLIError
 from pipelex.hub import get_library_manager
 from pipelex.libraries.library_manager import LibraryManager
@@ -34,7 +34,7 @@ async def do_build_blueprint(
         input_memory={
             "pipeline_name": pipeline_name,
             "requirements": requirements,
-            "rules": get_rules(),
+            "rules": get_pipeline_creation_rules(),
         },
     )
     blueprint = pipe_output.main_stuff_as(content_type=PipelineLibraryBlueprint)

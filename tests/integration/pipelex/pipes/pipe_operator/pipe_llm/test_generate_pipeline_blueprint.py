@@ -2,6 +2,7 @@ import pytest
 
 from pipelex import pretty_print
 from pipelex.core.pipe_run_params import PipeRunMode
+from pipelex.create.helpers import get_pipeline_creation_rules
 from pipelex.libraries.pipeline_blueprint import PipelineLibraryBlueprint
 from pipelex.pipeline.execute import execute_pipeline
 
@@ -28,7 +29,9 @@ async def test_generate_pipeline_blueprint(pipe_run_mode: PipeRunMode, requireme
     pipe_output = await execute_pipeline(
         pipe_code="build_blueprint",
         input_memory={
+            "pipeline_name": "test_pipeline",
             "requirements": requirements,
+            "rules": get_pipeline_creation_rules(),
         },
         pipe_run_mode=pipe_run_mode,
     )
@@ -39,4 +42,3 @@ async def test_generate_pipeline_blueprint(pipe_run_mode: PipeRunMode, requireme
     assert isinstance(blueprint.domain, str) and blueprint.domain != ""
 
     pretty_print(blueprint, title="PipelineBlueprint")
-    pretty_print(blueprint.to_toml_dict(), title="PipelineBlueprint TOML")
