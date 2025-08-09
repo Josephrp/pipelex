@@ -19,6 +19,10 @@ from pipelex.tools.misc.file_utils import load_text_from_path, save_text_to_path
 from pipelex.tools.typing.pydantic_utils import format_pydantic_validation_error
 
 
+def _get_rules() -> str:
+    return load_text_from_path(".pipelex/design_pipelines.md")
+
+
 async def do_draft_pipeline_text(
     requirements: str,
     output_path: Optional[str],
@@ -26,6 +30,7 @@ async def do_draft_pipeline_text(
     pipe_output = await execute_pipeline(
         pipe_code="draft_pipeline_text",
         input_memory={
+            "rules": _get_rules(),
             "requirements": requirements,
         },
     )

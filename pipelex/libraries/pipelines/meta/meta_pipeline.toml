@@ -14,17 +14,12 @@ PipeBlueprint = "Details enabling to create a pipe"
 [pipe.draft_pipeline_text]
 type = "PipeLLM"
 definition = "Generate a rough pipeline draft from natural language requirements"
-inputs = { requirements = "Text" }
+inputs = { rules = "Text", requirements = "Text" }
 output = "PipelineDraftText"
 prompt_template = """
-You are a Pipelex pipeline architect. Build a pipeline draft showing how we solve the problem.
+You are a Pipelex pipeline architect. Build a pipeline draft text showing how we solve the problem.
 
-Think on the pipeline requirements: what are the pipeline's inputs and what is the expected output?
-
-- Keep domain and pipe codes short, lowercase, and meaningful.
-- In concept, map ConceptName (PascalCase, singular) to its natural language definition string. Do not redefine native concepts (Text, Image, PDF, TextAndImages, Number, Page).
-- In pipe, define at least one pipe that accomplishes the main goal implied by the requirements. Use operators/controllers supported by Pipelex (e.g., PipeLLM, PipeOcr, PipeSequence...).
-- Ensure all input variables referenced in prompts are listed in the pipe `inputs`.
+@rules
 
 @requirements
 """
