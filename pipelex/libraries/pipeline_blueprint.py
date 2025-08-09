@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from pipelex.core.concept_factory import ConceptBlueprint
 from pipelex.core.stuff_content import StructuredContent
@@ -34,13 +34,6 @@ class PipeBlueprintError(LibraryError):
         self.file_path = file_path
         self.pipe_name = pipe_name
         super().__init__(f"Error loading pipe '{pipe_name}' from '{file_path}': {error_msg}")
-
-
-class PipeStepBlueprint(BaseModel):
-    """Blueprint of a step in a pipe sequence."""
-
-    pipe: str
-    result: str
 
 
 class PipelineLibraryBlueprint(StructuredContent):

@@ -1,0 +1,58 @@
+from __future__ import annotations
+
+import asyncio
+from typing import Annotated, Any, Dict, Optional, cast
+
+import typer
+from pydantic import ValidationError
+
+from pipelex import pretty_print
+from pipelex.exceptions import PipeDefinitionError, PipelexCLIError
+from pipelex.hub import get_library_manager
+from pipelex.libraries.library_manager import LibraryManager
+from pipelex.libraries.pipeline_blueprint import PipelineLibraryBlueprint
+from pipelex.libraries.pipelines.meta.pipeline_draft import PipelineDraft
+from pipelex.pipe_works.pipe_dry import dry_run_pipe_codes
+from pipelex.pipelex import Pipelex
+from pipelex.pipeline.execute import execute_pipeline
+from pipelex.tools.misc.file_utils import load_text_from_path, save_text_to_path
+from pipelex.tools.typing.pydantic_utils import format_pydantic_validation_error
+
+
+async def do_draft_pipeline_text(
+    requirements: str,
+    output_path: Optional[str],
+) -> None:
+    pipe_output = await execute_pipeline(
+        pipe_code="draft_pipeline_text",
+        input_memory={
+            "requirements": requirements,
+        },
+    )
+    draft_text = pipe_output.main_stuff_as_str
+    pretty_print(draft_text, title="Pipeline Draft Text")
+
+    # Save or display result
+    output_path = output_path or "pipelex/libraries/pipelines/temp/pipeline_draft.text"
+    save_text_to_path(text=draft_text, path=output_path)
+    typer.echo(f"✅ Pipeline draft text saved to '{output_path}'")
+
+
+async def do_draft_pipeline(
+    requirements: str,
+    output_path: Optional[str],
+) -> None:
+    pipe_output = await execute_pipeline(
+        pipe_code="draft_pipeline",
+        input_memory={
+            "requirements": requirements,
+        },
+    )
+    draft = pipe_output.main_stuff_as(content_type=PipelineDraft)
+    pretty_print(draft, title="Pipeline Draft")
+    pretty_print(draft.to_toml_dict(), title="Pipeline Draft (TOML)")
+
+    # Save or display result
+    output_path = output_path or "pipelex/libraries/pipelines/temp/generated_blueprint.toml"
+    draft.save_to_file(output_path)
+    typer.echo(f"✅ Blueprint saved to '{output_path}'")

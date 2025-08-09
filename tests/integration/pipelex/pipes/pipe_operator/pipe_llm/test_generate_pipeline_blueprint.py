@@ -24,9 +24,9 @@ from pipelex.pipeline.execute import execute_pipeline
         ),
     ],
 )
-async def test_generate_pipeline_blueprint_dry_run(pipe_run_mode: PipeRunMode, requirements: str):
+async def test_generate_pipeline_blueprint(pipe_run_mode: PipeRunMode, requirements: str):
     pipe_output = await execute_pipeline(
-        pipe_code="generate_pipeline_blueprint",
+        pipe_code="build_blueprint",
         input_memory={
             "requirements": requirements,
         },

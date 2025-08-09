@@ -11,6 +11,7 @@ from pipelex.cogt.llm.llm_models.llm_setting import LLMSetting, LLMSettingChoice
 from pipelex.cogt.llm.llm_prompt import LLMPrompt
 from pipelex.cogt.llm.llm_prompt_factory_abstract import LLMPromptFactoryAbstract
 from pipelex.config import StaticValidationReaction, get_config
+from pipelex.core.concept import Concept
 from pipelex.core.concept_code_factory import ConceptCodeFactory
 from pipelex.core.concept_native import NativeConcept, NativeConceptClass
 from pipelex.core.domain import Domain, SpecialDomain
@@ -79,7 +80,11 @@ class PipeLLM(PipeOperator):
         if self.structuring_method is not None:
             output_concept = get_required_concept(concept_code=self.output_concept_code)
             if output_concept.structure_class_name == NativeConceptClass.TEXT:
-                raise PipeDefinitionError(f"Output concept '{self.output_concept_code}' is a Text concept, so it cannot be structured")
+                concept_name = Concept.extract_concept_name_from_str(concept_str=self.output_concept_code)
+                raise PipeDefinitionError(
+                    f"Output concept '{self.output_concept_code}' is considered a Text concept, "
+                    f"so it cannot be structured. Maybe you forgot to add '{concept_name}' to the class registry?"
+                )
         return self
 
     @override
