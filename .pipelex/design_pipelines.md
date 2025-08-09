@@ -14,7 +14,7 @@ This section explains how to design pipelines for Pipelex.
 
 - Ensure each pipe’s `inputs` shows all required variables, including those used by nested steps or conditional branches. `inputs` is a dict mapping variable names to concept codes.
 
-- Choose appropriate native or structured output concepts; avoid introducing plural or adjective-based concept names. Textual concepts refining `native.Text` are acceptable too, and you don't need to specify their structure: by default it'll be text.
+- Choose appropriate native or structured output concepts.
 
 ### Root blueprint object: PipelineLibraryBlueprint
 
@@ -40,15 +40,37 @@ This section explains how to design pipelines for Pipelex.
 
 ### Concepts
 
-- Naming:
-
+- Conceiving and naming concepts:
   - Use PascalCase for concept names.
 
-  - Never use plurals (use `Item` not `Items`).
+  - DO NOT use plurals in concept names (use `Item` not `Items`).
 
-  - Avoid adjectives (use `Text`, not `LargeText`).
+  - DO NOT use adjectives in concept names (use `Text`, not `LargeText`).
+
+  - When a concept or concept reference is unqualified (no `domain.` prefix), it will be prefixed with the current blueprint `domain` during validation/expansion, unless its name corresponds to one of the native concepts.
 
   - Do not redefine native concepts (use them directly): `Text`, `Image`, `PDF`, `TextAndImages`, `Number`, `Page`, `LLMPrompt`.
+
+  - Textual concepts refining `native.Text` are acceptable too, and you don't need to specify their structure: by default it'll be text.
+  
+  - Reuse existing concepts whenever possible. For instance if you take a `Poem` and make it dark, the result is a `Poem` too: you MUST NOT create a new `DarkPoem` concept in this kind of situation.
+
+  - Concepts from the base library are also provided and must be used whenever possible:
+
+    - `documents.TextAndImagesContent` = "A content that comprises text and images where the text can include local links to the images"
+
+    - `images.VisualDescription` = "Visual description of something"
+
+    - `images.ImgGenPrompt`:
+      - definition = "Prompt to generate an image"
+      - refines = "Text"
+
+    - `images.Photo`:
+      - definition = "Photo"
+      - structure = "ImageContent"
+      - refines = "Image"
+
+  - DO NOT create a concept qualified with circumstances like `InputPhoto`: it's just a `Photo`, it so happens that we're using it as input, OK, but that will be convened by the rest of the structure.
 
 - Quick form (string):
 
@@ -65,10 +87,6 @@ This section explains how to design pipelines for Pipelex.
   - `refines: Union[str, List[str]]` — concept codes or names it refines. May be a single string or a list. Unqualified names are prefixed with the current `domain` automatically.
 
   - `domain: Optional[str]` — not required when provided via the library loader.
-
-Notes:
-
-- When a concept or concept reference is unqualified (no `domain.` prefix), it will be prefixed with the current blueprint `domain` during validation/expansion.
 
 ### Pipes: overall rules
 
