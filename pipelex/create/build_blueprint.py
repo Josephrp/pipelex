@@ -7,6 +7,7 @@ import typer
 from pydantic import ValidationError
 
 from pipelex import pretty_print
+from pipelex.create.helpers import get_rules
 from pipelex.exceptions import PipeDefinitionError, PipelexCLIError
 from pipelex.hub import get_library_manager
 from pipelex.libraries.library_manager import LibraryManager
@@ -20,14 +21,17 @@ from pipelex.tools.typing.pydantic_utils import format_pydantic_validation_error
 
 
 async def do_build_blueprint(
+    pipeline_name: str,
     requirements: str,
     output_path: Optional[str],
     validate: bool,
 ) -> None:
     pipe_output = await execute_pipeline(
-        pipe_code="draft_pipeline",
+        pipe_code="build_blueprint",
         input_memory={
+            "pipeline_name": pipeline_name,
             "requirements": requirements,
+            "rules": get_rules(),
         },
     )
     blueprint = pipe_output.main_stuff_as(content_type=PipelineLibraryBlueprint)

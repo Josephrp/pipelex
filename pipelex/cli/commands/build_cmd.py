@@ -17,6 +17,10 @@ build_app = typer.Typer(help="Build artifacts like pipeline blueprints")
 
 @build_app.command("draft")
 def build_draft_pipeline_cmd(
+    pipeline_name: Annotated[
+        str,
+        typer.Argument(help="Name/code of the pipeline to generate (used inside the draft)"),
+    ],
     requirements: Annotated[
         Optional[str],
         typer.Option("--requirements", "-r", help="Requirements text to generate the pipeline blueprint from"),
@@ -60,6 +64,7 @@ def build_draft_pipeline_cmd(
     if raw:
         asyncio.run(
             do_draft_pipeline_text(
+                pipeline_name=pipeline_name,
                 requirements=requirements_text,
                 output_path=output_path,
             )
@@ -67,6 +72,7 @@ def build_draft_pipeline_cmd(
     else:
         asyncio.run(
             do_draft_pipeline(
+                pipeline_name=pipeline_name,
                 requirements=requirements_text,
                 output_path=output_path,
             )
@@ -75,6 +81,10 @@ def build_draft_pipeline_cmd(
 
 @build_app.command("blueprint")
 def build_blueprint_cmd(
+    pipeline_name: Annotated[
+        str,
+        typer.Argument(help="Name/code of the pipeline to generate (used inside the draft)"),
+    ],
     requirements: Annotated[
         Optional[str],
         typer.Option("--requirements", "-r", help="Requirements text to generate the pipeline blueprint from"),
@@ -117,6 +127,7 @@ def build_blueprint_cmd(
 
     asyncio.run(
         do_build_blueprint(
+            pipeline_name=pipeline_name,
             requirements=requirements_text,
             output_path=output_path,
             validate=validate,

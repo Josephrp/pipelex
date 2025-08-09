@@ -14,7 +14,7 @@ PipeBlueprint = "Details enabling to create a pipe"
 [pipe.draft_pipeline_text]
 type = "PipeLLM"
 definition = "Generate a rough pipeline draft from natural language requirements"
-inputs = { rules = "Text", requirements = "Text" }
+inputs = { rules = "Text", requirements = "Text", pipeline_name = "Text" }
 output = "PipelineDraftText"
 llm = "llm_to_engineer"
 prompt_template = """
@@ -23,6 +23,8 @@ You are a Pipelex pipeline architect. Build a pipeline draft text showing how we
 @rules
 
 @requirements
+
+Name of the pipeline, i.e. name of the main pipe: $pipeline_name.
 """
 
 
@@ -48,11 +50,17 @@ Think on the pipeline requirements: what are the pipeline's inputs and what is t
 [pipe.build_blueprint]
 type = "PipeLLM"
 definition = "Generate a pipeline blueprint from natural language requirements"
-inputs = { requirements = "Text" }
+inputs = { rules = "Text", requirements = "Text", pipeline_name = "Text" }
 output = "PipelineLibraryBlueprint"
+llm = "llm_to_engineer"
+# structuring_method = "preliminary_text"
 prompt_template = """
-You are a Pipelex pipeline architect. Build a pipeline blueprint showing how we solve the problem.
+You are a Pipelex pipeline architect. Build a pipeline draft text showing how we solve the problem.
+
+@rules
 
 @requirements
+
+Name of the pipeline, i.e. name of the main pipe: $pipeline_name.
 """
 

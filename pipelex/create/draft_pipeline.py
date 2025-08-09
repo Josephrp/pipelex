@@ -7,6 +7,7 @@ import typer
 from pydantic import ValidationError
 
 from pipelex import pretty_print
+from pipelex.create.helpers import get_rules
 from pipelex.exceptions import PipeDefinitionError, PipelexCLIError
 from pipelex.hub import get_library_manager
 from pipelex.libraries.library_manager import LibraryManager
@@ -19,19 +20,17 @@ from pipelex.tools.misc.file_utils import load_text_from_path, save_text_to_path
 from pipelex.tools.typing.pydantic_utils import format_pydantic_validation_error
 
 
-def _get_rules() -> str:
-    return load_text_from_path(".pipelex/design_pipelines.md")
-
-
 async def do_draft_pipeline_text(
+    pipeline_name: str,
     requirements: str,
     output_path: Optional[str],
 ) -> None:
     pipe_output = await execute_pipeline(
         pipe_code="draft_pipeline_text",
         input_memory={
-            "rules": _get_rules(),
+            "pipeline_name": pipeline_name,
             "requirements": requirements,
+            "rules": get_rules(),
         },
     )
     draft_text = pipe_output.main_stuff_as_str
@@ -44,13 +43,16 @@ async def do_draft_pipeline_text(
 
 
 async def do_draft_pipeline(
+    pipeline_name: str,
     requirements: str,
     output_path: Optional[str],
 ) -> None:
     pipe_output = await execute_pipeline(
         pipe_code="draft_pipeline",
         input_memory={
+            "pipeline_name": pipeline_name,
             "requirements": requirements,
+            "rules": get_rules(),
         },
     )
     draft = pipe_output.main_stuff_as(content_type=PipelineDraft)
