@@ -135,7 +135,7 @@ def save_toml_to_path(data: Dict[str, Any], path: str) -> None:
     if not isinstance(data_cleaned, dict):
         raise RuntimeError("Data must be a dictionary")
     with open(path, "w", encoding="utf-8") as file:
-        toml_content = tomlkit.dumps(data_cleaned)  # type: ignore
+        toml_content: str = tomlkit.dumps(data_cleaned)  # type: ignore
         cleaned_content = _clean_trailing_whitespace(toml_content)
         file.write(cleaned_content)
 

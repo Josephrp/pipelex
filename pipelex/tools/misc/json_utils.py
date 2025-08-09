@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 from kajson import kajson
 from pydantic import BaseModel
@@ -214,12 +214,14 @@ def remove_none_values(json_content: JsonContent | Any) -> JsonContent | Any:
         }
     """
     if isinstance(json_content, dict):
+        json_content = cast(Dict[str, Any], json_content)  # pyright: ignore[reportUnnecessaryCast]
         cleaned_dict: Dict[str, Any] = {}
         for key, value in json_content.items():
             if value is not None:
                 cleaned_dict[key] = remove_none_values(json_content=value)
         return cleaned_dict
     elif isinstance(json_content, list):
+        json_content = cast(List[Any], json_content)  # pyright: ignore[reportUnnecessaryCast]
         return [remove_none_values(item) for item in json_content]
     else:
         return json_content
