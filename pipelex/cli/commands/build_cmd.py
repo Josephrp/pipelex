@@ -19,8 +19,12 @@ build_app = typer.Typer(help="Build artifacts like pipeline blueprints")
 def build_draft_pipeline_cmd(
     pipeline_name: Annotated[
         str,
-        typer.Argument(help="Name/code of the pipeline to generate (used inside the draft)"),
+        typer.Argument(help="Name/code of the pipeline to generate"),
     ],
+    domain: Annotated[
+        str,
+        typer.Option("--domain", "-d", help="Domain of the pipeline to generate"),
+    ] = "wip_domain",
     requirements: Annotated[
         Optional[str],
         typer.Option("--requirements", "-r", help="Requirements text to generate the pipeline blueprint from"),
@@ -64,6 +68,7 @@ def build_draft_pipeline_cmd(
     if raw:
         asyncio.run(
             do_draft_pipeline_text(
+                domain=domain,
                 pipeline_name=pipeline_name,
                 requirements=requirements_text,
                 output_path=output_path,

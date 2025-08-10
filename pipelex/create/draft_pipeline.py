@@ -5,7 +5,7 @@ from typing import Optional
 import typer
 
 from pipelex import pretty_print
-from pipelex.create.helpers import get_pipeline_creation_rules
+from pipelex.create.helpers import get_support_file
 from pipelex.create.pipeline_toml import dict_to_toml, save_toml_to_path
 from pipelex.libraries.pipelines.meta.pipeline_draft import PipelineDraft
 from pipelex.pipeline.execute import execute_pipeline
@@ -13,6 +13,7 @@ from pipelex.tools.misc.file_utils import save_text_to_path
 
 
 async def do_draft_pipeline_text(
+    domain: str,
     pipeline_name: str,
     requirements: str,
     output_path: Optional[str],
@@ -20,16 +21,17 @@ async def do_draft_pipeline_text(
     pipe_output = await execute_pipeline(
         pipe_code="draft_pipeline_text",
         input_memory={
+            "domain": domain,
             "pipeline_name": pipeline_name,
             "requirements": requirements,
-            "rules": get_pipeline_creation_rules(),
+            "rules": get_support_file(subpath="draft_pipelines.md"),
         },
     )
     draft_text = pipe_output.main_stuff_as_str
     pretty_print(draft_text, title="Pipeline Draft Text")
 
     # Save or display result
-    output_path = output_path or "pipelex/libraries/pipelines/temp/pipeline_draft.text"
+    output_path = output_path or "pipelex/libraries/pipelines/temp/pipeline_draft.md"
     save_text_to_path(text=draft_text, path=output_path)
     typer.echo(f"✅ Pipeline draft text saved to '{output_path}'")
 
@@ -44,7 +46,7 @@ async def do_draft_pipeline(
         input_memory={
             "pipeline_name": pipeline_name,
             "requirements": requirements,
-            "rules": get_pipeline_creation_rules(),
+            "rules": get_support_file(subpath="draft_pipelines.md"),
         },
     )
     draft = pipe_output.main_stuff_as(content_type=PipelineDraft)

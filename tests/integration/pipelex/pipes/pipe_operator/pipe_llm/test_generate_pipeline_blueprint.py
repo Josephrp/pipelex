@@ -2,7 +2,7 @@ import pytest
 
 from pipelex import pretty_print
 from pipelex.core.pipe_run_params import PipeRunMode
-from pipelex.create.helpers import get_pipeline_creation_rules
+from pipelex.create.helpers import get_support_file
 from pipelex.libraries.pipeline_blueprint import PipelineLibraryBlueprint
 from pipelex.pipeline.execute import execute_pipeline
 
@@ -31,7 +31,7 @@ async def test_generate_pipeline_blueprint(pipe_run_mode: PipeRunMode, requireme
         input_memory={
             "pipeline_name": "test_pipeline",
             "requirements": requirements,
-            "rules": get_pipeline_creation_rules(),
+            "rules": get_support_file(),
         },
         pipe_run_mode=pipe_run_mode,
     )

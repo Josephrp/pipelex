@@ -14,7 +14,7 @@ PipeBlueprint = "Details enabling to create a pipe"
 [pipe.draft_pipeline_text]
 type = "PipeLLM"
 definition = "Generate a rough pipeline draft from natural language requirements"
-inputs = { rules = "Text", requirements = "Text", pipeline_name = "Text" }
+inputs = { rules = "Text", requirements = "Text", pipeline_name = "Text", domain = "Text" }
 output = "PipelineDraftText"
 llm = "llm_to_pipelex"
 prompt_template = """
@@ -24,7 +24,8 @@ You are a Pipelex pipeline architect. Build a pipeline draft text showing how we
 
 @requirements
 
-Name of the pipeline, i.e. name of the main pipe: $pipeline_name.
+Domain: $domain.
+Name of the pipeline: $pipeline_name.
 """
 
 
