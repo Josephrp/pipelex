@@ -12,13 +12,30 @@ from pipelex.tools.misc.json_utils import remove_none_values_from_dict
 from pipelex.tools.misc.toml_utils import clean_trailing_whitespace
 
 
-def make_toml_string(text: str, prefer_literal: bool = False, force_multiline: bool = False):
-    """Return a tomlkit String configured for triple quotes when appropriate."""
+def make_toml_string(
+    text: str,
+    prefer_literal: bool = False,
+    force_multiline: bool = False,
+    ensure_trailing_newline: bool = True,
+    ensure_leading_blank_line_in_value: bool = False,
+):
+    """
+    Build a tomlkit string node.
+    - If `force_multiline` or the text contains '\\n', we emit a triple-quoted multiline string.
+    - When multiline, `ensure_trailing_newline` puts the closing quotes on their own line.
+    - When multiline, `ensure_leading_blank_line_in_value` inserts a real blank line at the start of the value.
+    """
     needs_multiline = force_multiline or ("\n" in text)
-    # Prefer literal '''...''' when you do not want escapes, as long as it
-    # does not contain a triple single-quote sequence (which would be invalid).
-    use_literal = prefer_literal and ("'''" not in text)
-    return tk_string(text, multiline=needs_multiline, literal=use_literal)
+    normalized = text
+
+    if needs_multiline:
+        if ensure_leading_blank_line_in_value and not normalized.startswith("\n"):
+            normalized = "\n" + normalized
+        if ensure_trailing_newline and not normalized.endswith("\n"):
+            normalized = normalized + "\n"
+
+    use_literal = prefer_literal and ("'''" not in normalized)
+    return tk_string(normalized, multiline=needs_multiline, literal=use_literal)
 
 
 def _convert_to_inline(value: Any):
@@ -46,9 +63,14 @@ def _convert_to_inline(value: Any):
         return array_obj
 
     if isinstance(value, str):
-        # Emit """...""" when there are newlines; flip prefer_literal=True to get '''...'''.
-        return make_toml_string(value, prefer_literal=False)
-
+        # Triple quotes if needed (or forced); closing quotes on their own line.
+        return make_toml_string(
+            value,
+            prefer_literal=False,  # flip to True for '''...'''
+            force_multiline=False,  # flip to True to force """...""" even without \n
+            ensure_trailing_newline=True,  # keep closing """ on its own line
+            ensure_leading_blank_line_in_value=False,  # flip to True to keep a blank first line
+        )
     return value
 
 
