@@ -24,7 +24,7 @@ async def do_draft_pipeline_text(
             "domain": domain,
             "pipeline_name": pipeline_name,
             "requirements": requirements,
-            "rules": get_support_file(subpath="draft_pipelines.md"),
+            "rules": get_support_file(subpath="create/draft_pipelines.md"),
         },
     )
     draft_text = pipe_output.main_stuff_as_str
@@ -46,7 +46,7 @@ async def do_draft_pipeline(
         input_memory={
             "pipeline_name": pipeline_name,
             "requirements": requirements,
-            "rules": get_support_file(subpath="draft_pipelines.md"),
+            "draft_pipeline_rules": get_support_file(subpath="create/draft_pipelines.md"),
         },
     )
     draft = pipe_output.main_stuff_as(content_type=PipelineDraft)

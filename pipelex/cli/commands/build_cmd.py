@@ -88,8 +88,12 @@ def build_draft_pipeline_cmd(
 def build_blueprint_cmd(
     pipeline_name: Annotated[
         str,
-        typer.Argument(help="Name/code of the pipeline to generate (used inside the draft)"),
+        typer.Argument(help="Name/code of the pipeline to generate"),
     ],
+    domain: Annotated[
+        str,
+        typer.Option("--domain", "-d", help="Domain of the pipeline to generate"),
+    ] = "wip_domain",
     requirements: Annotated[
         Optional[str],
         typer.Option("--requirements", "-r", help="Requirements text to generate the pipeline blueprint from"),
@@ -132,6 +136,7 @@ def build_blueprint_cmd(
 
     asyncio.run(
         do_build_blueprint(
+            domain=domain,
             pipeline_name=pipeline_name,
             requirements=requirements_text,
             output_path=output_path,

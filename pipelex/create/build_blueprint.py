@@ -16,11 +16,13 @@ from pipelex.libraries.library_manager import LibraryManager
 from pipelex.libraries.pipeline_blueprint import PipelineLibraryBlueprint
 from pipelex.pipe_works.pipe_dry import dry_run_pipe_codes
 from pipelex.pipeline.execute import execute_pipeline
+from pipelex.tools.misc.file_utils import save_text_to_path
 from pipelex.tools.misc.json_utils import save_as_json_to_path
 from pipelex.tools.typing.pydantic_utils import format_pydantic_validation_error
 
 
 async def do_build_blueprint(
+    domain: str,
     pipeline_name: str,
     requirements: str,
     output_path: Optional[str],
@@ -29,13 +31,17 @@ async def do_build_blueprint(
     pipe_output = await execute_pipeline(
         pipe_code="build_blueprint",
         input_memory={
+            "domain": domain,
             "pipeline_name": pipeline_name,
             "requirements": requirements,
-            "rules": get_support_file(subpath="design_pipelines.md"),
+            "draft_pipeline_rules": get_support_file(subpath="create/draft_pipelines.md"),
+            "build_pipeline_rules": get_support_file(subpath="create/build_pipelines.md"),
         },
     )
     blueprint = pipe_output.main_stuff_as(content_type=PipelineLibraryBlueprint)
     pretty_print(blueprint, title="Pipeline Blueprint")
+    pipeline_draft = pipe_output.working_memory.get_stuff_as_str(name="pipeline_draft")
+    pretty_print(pipeline_draft, title="Pipeline Draft")
 
     # Save or display result
     output_path = output_path or "pipelex/libraries/pipelines/temp/generated_blueprint.toml"
@@ -44,6 +50,8 @@ async def do_build_blueprint(
     save_pipeline_blueprint_toml_to_path(blueprint=blueprint, path=output_path)
     json_path = output_path.replace(Path(output_path).suffix, ".json")
     save_as_json_to_path(object_to_save=blueprint, path=json_path)
+    draft_path = output_path.replace(Path(output_path).suffix, "_draft.md")
+    save_text_to_path(text=pipeline_draft, path=draft_path)
     typer.echo(f"✅ Blueprint saved to '{output_path}'")
 
     if validate:

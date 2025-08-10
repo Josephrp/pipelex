@@ -29,9 +29,10 @@ async def test_generate_pipeline_blueprint(pipe_run_mode: PipeRunMode, requireme
     pipe_output = await execute_pipeline(
         pipe_code="build_blueprint",
         input_memory={
+            "domain": "test_domain",
             "pipeline_name": "test_pipeline",
             "requirements": requirements,
-            "rules": get_support_file(),
+            "rules": get_support_file("create/design_pipelines.md"),
         },
         pipe_run_mode=pipe_run_mode,
     )

@@ -11,16 +11,26 @@ PipeBlueprint = "Details enabling to create a pipe"
 
 [pipe]
 
+[pipe.build_blueprint]
+type = "PipeSequence"
+definition = "Build a pipeline blueprint from natural language requirements"
+inputs = { draft_pipeline_rules = "Text", build_pipeline_rules = "Text", requirements = "Text", pipeline_name = "Text", domain = "Text" }
+output = "PipelineLibraryBlueprint"
+steps = [
+    { pipe = "draft_pipeline_text", result = "pipeline_draft" },
+    { pipe = "structure_blueprint", result = "pipeline_blueprint" },
+]
+
 [pipe.draft_pipeline_text]
 type = "PipeLLM"
 definition = "Generate a rough pipeline draft from natural language requirements"
-inputs = { rules = "Text", requirements = "Text", pipeline_name = "Text", domain = "Text" }
+inputs = { draft_pipeline_rules = "Text", requirements = "Text", pipeline_name = "Text", domain = "Text" }
 output = "PipelineDraftText"
 llm = "llm_to_pipelex"
 prompt_template = """
 You are a Pipelex pipeline architect. Build a pipeline draft text showing how we solve the problem.
 
-@rules
+@draft_pipeline_rules
 
 @requirements
 
@@ -28,40 +38,21 @@ Domain: $domain.
 Name of the pipeline: $pipeline_name.
 """
 
-
-[pipe.draft_pipeline]
-type = "PipeLLM"
-definition = "Generate a rough pipeline draft from natural language requirements"
-inputs = { requirements = "Text" }
-output = "PipelineDraft"
-structuring_method = "preliminary_text"
-prompt_template = """
-You are a Pipelex pipeline architect. Build a pipeline draft showing how we solve the problem.
-
-Think on the pipeline requirements: what are the pipeline's inputs and what is the expected output?
-
-- Keep domain and pipe codes short, lowercase, and meaningful.
-- In concept, map ConceptName (PascalCase, singular) to its natural language definition string. Do not redefine native concepts (Text, Image, PDF, TextAndImages, Number, Page).
-- In pipe, define at least one pipe that accomplishes the main goal implied by the requirements. Use operators/controllers supported by Pipelex (e.g., PipeLLM, PipeOcr, PipeSequence...).
-- Ensure all input variables referenced in prompts are listed in the pipe `inputs`.
-
-@requirements
-"""
-
-[pipe.build_blueprint]
+[pipe.structure_blueprint]
 type = "PipeLLM"
 definition = "Generate a pipeline blueprint from natural language requirements"
-inputs = { rules = "Text", requirements = "Text", pipeline_name = "Text" }
+inputs = { build_pipeline_rules = "Text", pipeline_draft = "Text", pipeline_name = "Text", domain = "Text" }
 output = "PipelineLibraryBlueprint"
 llm = "llm_to_pipelex"
 # structuring_method = "preliminary_text"
 prompt_template = """
-You are a Pipelex pipeline architect. Build a pipeline draft text showing how we solve the problem.
+You are a Pipelex pipeline architect. Build a structured pipeline blueprint from the provided pipeline draft text.
 
-@rules
+@build_pipeline_rules
 
-@requirements
+@pipeline_draft
 
-Name of the pipeline, i.e. name of the main pipe: $pipeline_name.
+Domain: $domain.
+Name of the pipeline: $pipeline_name.
 """
 
