@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Mapping, Optional, cast
+from typing import Any, Dict, List, Mapping, cast
 
 import tomlkit
 from tomlkit import array, document, inline_table, table
@@ -74,8 +74,25 @@ def _convert_to_inline(value: Any):
     return value
 
 
+def _convert_mapping_to_table(mapping: Mapping[str, Any]) -> Any:
+    """Convert a mapping into a TOML Table where any nested mappings (third level+)
+    are converted to inline tables.
+
+    This creates a second-level standard table, and only uses inline tables for
+    third level and deeper structures.
+    """
+    tbl = table()
+    for field_key, field_value in mapping.items():
+        if isinstance(field_value, Mapping):
+            # Third-level mapping -> inline table
+            tbl.add(field_key, _convert_to_inline(field_value))
+        else:
+            tbl.add(field_key, _convert_to_inline(field_value))
+    return tbl
+
+
 def dict_to_toml(data: Mapping[str, Any]) -> str:
-    """Top-level keys become tables; nested dicts become inline tables."""
+    """Top-level keys become tables; second-level mappings become tables; inline tables start at third level."""
     data = remove_none_values_from_dict(data=data)
     document_root = document()
     for section_key, section_value in data.items():
@@ -83,7 +100,12 @@ def dict_to_toml(data: Mapping[str, Any]) -> str:
             section_value = cast(Mapping[str, Any], section_value)
             table_obj = table()
             for field_key, field_value in section_value.items():
-                table_obj.add(field_key, _convert_to_inline(field_value))
+                if isinstance(field_value, Mapping):
+                    # Second level mapping -> standard table [section.field]
+                    sub_table = _convert_mapping_to_table(cast(Mapping[str, Any], field_value))
+                    table_obj.add(field_key, sub_table)
+                else:
+                    table_obj.add(field_key, _convert_to_inline(field_value))
             document_root.add(section_key, table_obj)  # `[section_key]` section
         else:
             document_root.add(section_key, _convert_to_inline(section_value))

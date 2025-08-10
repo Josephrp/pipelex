@@ -9,7 +9,7 @@ from pydantic import ValidationError
 
 from pipelex import pretty_print
 from pipelex.create.helpers import get_pipeline_creation_rules
-from pipelex.create.pipeline_toml import save_pipeline_blueprint_toml_to_path, save_toml_to_path
+from pipelex.create.pipeline_toml import save_pipeline_blueprint_toml_to_path
 from pipelex.exceptions import PipeDefinitionError, PipelexCLIError
 from pipelex.hub import get_library_manager
 from pipelex.libraries.library_manager import LibraryManager
