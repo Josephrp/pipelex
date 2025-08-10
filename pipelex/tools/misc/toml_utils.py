@@ -1,10 +1,13 @@
-from typing import Any, Dict, List, Optional
+from __future__ import annotations
+
+from typing import Any, Dict, List, Mapping, Optional, cast
 
 import toml
 import tomlkit
+from tomlkit import array, document, inline_table, table
 
 from pipelex.tools.misc.file_utils import path_exists
-from pipelex.tools.misc.json_utils import remove_none_values
+from pipelex.tools.misc.json_utils import remove_none_values_from_dict
 
 
 class TOMLValidationError(Exception):
@@ -55,7 +58,7 @@ def validate_toml_file(path: str) -> None:
         _validate_toml_content(content, path)
 
 
-def _clean_trailing_whitespace(content: str) -> str:
+def clean_trailing_whitespace(content: str) -> str:
     """Clean trailing whitespace from TOML content.
 
     This function:
@@ -100,7 +103,7 @@ def load_toml_from_path(path: str) -> Dict[str, Any]:
         with open(path, "r", encoding="utf-8") as file:
             content = file.read()
 
-        cleaned_content = _clean_trailing_whitespace(content)
+        cleaned_content = clean_trailing_whitespace(content)
 
         # If content changed, write it back
         if content != cleaned_content:
@@ -122,32 +125,3 @@ def failable_load_toml_from_path(path: str) -> Optional[Dict[str, Any]]:
     except toml.TomlDecodeError as exc:
         print(f"Failed to parse TOML file '{path}': {exc}")
         return None
-
-
-def save_toml_to_path(data: Dict[str, Any], path: str) -> None:
-    """Save dictionary as TOML to file path.
-
-    Args:
-        data: Dictionary to save as TOML
-        path: Path where to save the TOML file
-    """
-    data_cleaned = remove_none_values(data)
-    if not isinstance(data_cleaned, dict):
-        raise RuntimeError("Data must be a dictionary")
-    with open(path, "w", encoding="utf-8") as file:
-        toml_content: str = tomlkit.dumps(data_cleaned)  # type: ignore
-        cleaned_content = _clean_trailing_whitespace(toml_content)
-        file.write(cleaned_content)
-
-
-def dict_to_toml_string(data: Dict[str, Any]) -> str:
-    """Convert dictionary to TOML string format.
-
-    Args:
-        data: Dictionary to convert to TOML
-
-    Returns:
-        TOML formatted string
-    """
-    toml_content = toml.dumps(data)
-    return _clean_trailing_whitespace(toml_content)
