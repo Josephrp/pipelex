@@ -419,10 +419,6 @@ docs-deploy: env
 ### SHORTHANDS
 ##########################################################################################
 
-check-unused-imports: env
-	$(call PRINT_TITLE,"Checking for unused imports without fixing")
-	$(VENV_RUFF) check --select=F401 --no-fix .
-
 c: format lint pyright mypy
 	@echo "> done: c = check"
 

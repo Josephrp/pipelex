@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 from typing import Any, ClassVar, Dict, List, Match
 
-from pipelex.tools.migrate.migration_result import MigrationResult
+from pipelex.migration.migration_result import MigrationResult
 
 
 class TomlMigrator:

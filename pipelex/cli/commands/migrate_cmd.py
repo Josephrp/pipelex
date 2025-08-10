@@ -5,7 +5,8 @@ from typing import Annotated
 
 import typer
 
-from pipelex.tools.migrate.migrate_v0_1_0_to_v0_2_0 import TomlMigrator, migrate_concept_syntax
+from pipelex.migration.migrate_v0_1_0_to_v0_2_0 import TomlMigrator, migrate_concept_syntax
+from pipelex.migration.migration_result import MigrationResult
 
 from .common import is_pipelex_libraries_folder
 
@@ -34,7 +35,7 @@ def do_migrate(
         raise typer.Exit(1)
 
     try:
-        result = migrate_concept_syntax(
+        result: MigrationResult = migrate_concept_syntax(
             directory=pipelines_dir_or_file,
             create_backups=backups and not dry_run,
             dry_run=dry_run,

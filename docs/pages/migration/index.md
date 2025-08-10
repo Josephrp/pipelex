@@ -2,22 +2,22 @@
 
 This document provides guidance for migrating between different versions of Pipelex that introduce breaking changes.
 
-## Version 0.6.11: Concept Definition Syntax Change
+## Concepts Migration
 
 ### Breaking Change
 
-In version 0.6.11, we changed the syntax for defining concepts in TOML library files. The key name for concept definitions has changed from `Concept` to `definition`.
+We changed the syntax for defining concepts in TOML library files. The key name for concept definitions has changed from `Concept` to `definition`.
 
 ### What Changed
 
-**Old syntax (before v0.6.11):**
+**Old syntax:**
 ```toml
 [concept.MyConceptName]
 Concept = "Description of the concept"
 refines = "BaseConceptName"
 ```
 
-**New syntax (v0.6.11+):**
+**New syntax:**
 ```toml
 [concept.MyConceptName]
 definition = "Description of the concept"
@@ -27,6 +27,7 @@ refines = "BaseConceptName"
 ### Why This Change
 
 This change improves consistency in our TOML schema by:
+
 - Using more descriptive field names (`definition` instead of `Concept`)
 - Aligning with the internal `ConceptBlueprint` data structure
 - Making the TOML files more self-documenting and intuitive
@@ -46,6 +47,7 @@ pipelex migrate
 ```
 
 The migration command will:
+
 - Find all `.toml` files in your configured pipelines directory
 - Replace `Concept =` with `definition =` in concept definitions
 - Preserve all other formatting and comments
@@ -110,11 +112,13 @@ pipelex run your-pipeline-name
 ### Troubleshooting
 
 **Error: "ConceptBlueprint validation failed"**
+
 - Check that all `Concept =` entries have been changed to `definition =`
 - Ensure no typos were introduced during migration
 - Verify TOML syntax is still valid
 
 **Error: "Failed to load TOML file"**
+
 - Check file permissions
 - Ensure TOML syntax is valid (no missing quotes, brackets, etc.)
 - Review any custom modifications that might conflict
@@ -122,25 +126,26 @@ pipelex run your-pipeline-name
 ### Rollback
 
 If you need to rollback the migration:
+
 1. Stop using the new version of Pipelex
 2. Restore from the `.backup` files created during migration
 3. Or manually change `definition =` back to `Concept =`
 
-## Version 0.3.0: Pipe Definition Syntax Change
+## Pipes Migration
 
 ### Breaking Change
 
-Starting in version 0.3.0, we changed the syntax for defining pipes in TOML library files. The pipe definition format has been restructured to use explicit `type` and `definition` fields instead of the implicit `PipeClassName = "description"` format.
+We changed the syntax for defining pipes in TOML library files. The pipe definition format has been restructured to use explicit `type` and `definition` fields instead of the implicit `PipeClassName = "description"` format.
 
 ### What Changed
 
-**Old syntax (before v0.3.0):**
+**Old syntax:**
 ```toml
 [pipe.my_pipe_name]
 SomePipeClass = "Description of what this pipe does"
 ```
 
-**New syntax (v0.3.0+):**
+**New syntax:**
 ```toml
 [pipe.my_pipe_name]
 type = "SomePipeClass"
@@ -150,6 +155,7 @@ definition = "Description of what this pipe does"
 ### Why This Change
 
 This change improves consistency and clarity by:
+
 - Making the pipe class type explicit and separate from its description
 - Aligning pipe definitions with concept definitions (both use `definition`)
 - Improving readability and maintainability of TOML files
@@ -170,6 +176,7 @@ pipelex migrate
 ```
 
 The migration command will:
+
 - Find all `.toml` files in your configured pipelines directory
 - Convert `PipeClassName = "description"` to `type = "PipeClassName"` and `definition = "description"`
 - Preserve all other formatting and comments
