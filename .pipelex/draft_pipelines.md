@@ -30,8 +30,8 @@ Purpose: [What this pipeline does]
 ### Inputs Section
 ```markdown
 ## Inputs
-- `input_name` : Description of what this input represents
-- `another_input` : Another input description
+- `document` : PDF document to analyze
+- `criteria` : Analysis criteria to apply
 ```
 
 ### Flow Section
@@ -41,23 +41,23 @@ Describe the pipeline flow using concise step notation:
 ```markdown
 ## Flow
 
-WorkingMemory starts with: {input_name, another_input}
+WorkingMemory starts with: {document, criteria}
 
-### Step 1: Process input data
-LLM[process]: (input_name) → intermediate_result
+### Step 1: Process document content
+LLM[process]: (document) → processed_content
 
-WorkingMemory now contains: {input_name, another_input, intermediate_result}
+WorkingMemory now contains: {document, criteria, processed_content}
 
-### Step 2: Synthesize results with additional context
-LLM[synthesize]: (intermediate_result, another_input) → final_output
+### Step 2: Apply analysis criteria to processed content
+LLM[synthesize]: (processed_content, criteria) → analysis_report
 
-WorkingMemory now contains: {input_name, another_input, intermediate_result, final_output}
+WorkingMemory now contains: {document, criteria, processed_content, analysis_report}
 ```
 
 ### Output Section
 ```markdown
 ## Output
-Returns: `final_output` - Description of the final result
+Returns: `analysis_report` - Comprehensive analysis based on criteria
 ```
 
 ## Pipe Types and Notation
@@ -92,50 +92,50 @@ Func[function_name]: (data) → result
 
 ### Sequential Processing (to run steps in sequence, use it when steps need results from previous steps)
 ```markdown
-Step 1: Process input data
-process_input → result_1
+Step 1: Extract key information from document
+extract_info(document) → key_info
 
-Step 2: Analyze processed results  
-analyze(result_1) → result_2
+Step 2: Analyze extracted information
+analyze(key_info) → analysis
 
-Step 3: Finalize with original context
-finalize(result_2, original_input) → final_output
+Step 3: Generate report with original document context
+generate_report(analysis, document) → report
 ```
 
 ### Batch Processing (to process each item in a list independently and in parallel)
 ```markdown
-Process each item in list_of_items:
-process_single(item) → processed_item
+Process each item in documents:
+analyze_document(document) → analysis
 
-Collect all results → processed_items_list
+Collect all results → document_analyses
 ```
 
 ### Parallel Processing (to run different pipes in parallel from the same memory, use it when steps can be run independently, each with a copy of the working memory)
 ```markdown
 Parallel execution:
 
-Branch A: Process applying pipe A
-pipe_a(input) → result_a
+Branch A: Extract technical details
+extract_technical(document) → technical_info
 
-Branch B: Process applying pipe B  
-pipe_b(input) → result_b
+Branch B: Extract business insights
+extract_business(document) → business_info
 
-Combine: Merge parallel results
-merge(result_a, result_b) → combined_result
+Combine: Merge analysis results
+merge_insights(technical_info, business_info) → comprehensive_analysis
 ```
 
 ### Conditional Processing (to run different pipes based on a condition)
 ```markdown
-Route based on expression(input_data):
+Route based on expression(document_type):
 
-Case "option_1": Handle option 1
-pipe_a(input_data) → result
+Case "technical": Handle technical documents
+analyze_technical(document) → analysis
 
-Case "option_2": Handle option 2
-pipe_b(input_data) → result
+Case "legal": Handle legal documents
+analyze_legal(document) → analysis
 
-Default: Handle other cases
-pipe_default(input_data) → result
+Default: Handle general documents
+analyze_general(document) → analysis
 ```
 
 ## Memory Flow Examples
@@ -147,32 +147,32 @@ Domain: document_analysis
 Purpose: Extract and analyze key information from documents
 
 ## Inputs
-- `raw_document` : PDF document to analyze
+- `document` : PDF document to analyze
 
 ## Flow
 
-WorkingMemory: {raw_document}
+WorkingMemory: {document}
 
 ### Step 1: Extract content from PDF
-OCR: (raw_document) → pages
+OCR: (document) → pages
 
-WorkingMemory: {raw_document, pages}
+WorkingMemory: {document, pages}
 
 ### Step 2: Summarize each page in parallel
 Process each page in pages:
-LLM[summarize]: (page) → page_summary
+LLM[summarize]: (page) → summary
 
-Collect all results → page_summaries
+Collect all results → summaries
 
-WorkingMemory: {raw_document, pages, page_summaries}
+WorkingMemory: {document, pages, summaries}
 
 ### Step 3: Create comprehensive analysis from summaries
-LLM[synthesize]: (page_summaries) → final_analysis
+LLM[synthesize]: (summaries) → analysis
 
-WorkingMemory: {raw_document, pages, page_summaries, final_analysis}
+WorkingMemory: {document, pages, summaries, analysis}
 
 ## Output
-Returns: `final_analysis`
+Returns: `analysis`
 ```
 
 ### Example 2: Conditional Processing
@@ -190,12 +190,12 @@ Purpose: Route and respond to customer queries
 WorkingMemory: {query, context}
 
 ### Step 1: Classify query into support category
-LLM[classify]: (query) → query_type
+LLM[classify]: (query) → category
 
-WorkingMemory: {query, context, query_type}
+WorkingMemory: {query, context, category}
 
 ### Step 2: Route to appropriate support handler
-Route based on query_type:
+Route based on category:
 
 Case "technical": Technical support handler
 LLM[technical_support]: (query, context) → response
@@ -206,7 +206,7 @@ LLM[billing_support]: (query, context) → response
 Default: General support handler
 LLM[general_support]: (query) → response
 
-WorkingMemory: {query, context, query_type, response}
+WorkingMemory: {query, context, category, response}
 
 ## Output
 Returns: `response`
@@ -214,23 +214,25 @@ Returns: `response`
 
 ## Best Practices
 
-1. **Name consistently**: Once you name a result (e.g., `analyzed_data`), use that exact name when referencing it later.
+1. **Use semantic variable names**: Name variables based on what they represent, not how they're used. Use `document` instead of `input_document`, `text` instead of `input_text`, `analysis` instead of `result_1`.
 
-2. **Show memory state**: After complex steps, show what's in WorkingMemory to track data flow.
+2. **Name consistently**: Once you name a result (e.g., `analysis`), use that exact name when referencing it later.
 
-3. **Be explicit about inputs**: For each operator step, clearly indicate which items from WorkingMemory are being used.
+3. **Show memory state**: After complex steps, show what's in WorkingMemory to track data flow.
 
-4. **Use descriptive names**: Instead of `result_1`, use `extracted_entities` or `summarized_content`.
+4. **Be explicit about inputs**: For each operator step, clearly indicate which items from WorkingMemory are being used.
 
-5. **Concise step descriptions**: Each step should have a clear title that describes what it accomplishes. Avoid repeating the same information in multiple places.
+5. **Use descriptive names**: Choose names that clearly describe the content: `summaries`, `technical_info`, `user_preferences`.
 
-6. **No prompts during drafting**: Focus on describing WHAT each step does, not HOW (the actual prompts). Prompts are implementation details added later.
+6. **Concise step descriptions**: Each step should have a clear title that describes what it accomplishes. Avoid repeating the same information in multiple places.
 
-7. **Block vs Inline references**:
+7. **No prompts during drafting**: Focus on describing WHAT each step does, not HOW (the actual prompts). Prompts are implementation details added later.
+
+8. **Block vs Inline references**:
    - Use `@variable_name` notation for block insertions (multi-line content)
    - Use `$variable_name` notation for inline insertions (single values in sentences)
 
-8. **Batch operations**: When processing lists, clearly indicate:
+9. **Batch operations**: When processing lists, clearly indicate:
    - What list is being iterated (`batch_over`)
    - What each item is called during processing (`batch_as`)
    - What the collected results are named
@@ -243,6 +245,7 @@ Before finalizing your draft:
 - [ ] Every result name is unique (no overwriting unless intentional)
 - [ ] The final output exists in WorkingMemory
 - [ ] Names are consistent throughout (no typos or variations)
+- [ ] Variable names are semantic (describe what they are, not how they're used)
 - [ ] The flow clearly shows data transformation from inputs to outputs
 - [ ] Each step has a concise, non-repetitive description
 
