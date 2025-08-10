@@ -16,7 +16,7 @@ type = "PipeLLM"
 definition = "Generate a rough pipeline draft from natural language requirements"
 inputs = { rules = "Text", requirements = "Text", pipeline_name = "Text" }
 output = "PipelineDraftText"
-llm = "llm_to_engineer"
+llm = "llm_to_pipelex"
 prompt_template = """
 You are a Pipelex pipeline architect. Build a pipeline draft text showing how we solve the problem.
 
@@ -52,7 +52,7 @@ type = "PipeLLM"
 definition = "Generate a pipeline blueprint from natural language requirements"
 inputs = { rules = "Text", requirements = "Text", pipeline_name = "Text" }
 output = "PipelineLibraryBlueprint"
-llm = "llm_to_engineer"
+llm = "llm_to_pipelex"
 # structuring_method = "preliminary_text"
 prompt_template = """
 You are a Pipelex pipeline architect. Build a pipeline draft text showing how we solve the problem.

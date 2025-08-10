@@ -111,6 +111,7 @@ class BatchParams(BaseModel):
 class PipeRunParams(BaseModel):
     run_mode: PipeRunMode = PipeRunMode.LIVE
     final_stuff_code: Optional[str] = None
+    is_with_preliminary_text: Optional[bool] = None
     output_multiplicity: Optional[PipeOutputMultiplicity] = None
     dynamic_output_concept_code: Optional[str] = None
     batch_params: Optional[BatchParams] = None
@@ -139,6 +140,7 @@ class PipeRunParams(BaseModel):
         cls,
         pipe_run_params: Self,
         applied_output_multiplicity: Optional[PipeOutputMultiplicity],
+        is_with_preliminary_text: Optional[bool] = None,
     ) -> Self:
         """
         Copy the run params the nb_output into the params, and remove the attribute.
@@ -152,6 +154,8 @@ class PipeRunParams(BaseModel):
         elif isinstance(applied_output_multiplicity, int):
             new_run_params.output_multiplicity = False
             new_run_params.params[PipeRunParamKey.NB_OUTPUT] = applied_output_multiplicity
+        if is_with_preliminary_text is not None:
+            new_run_params.is_with_preliminary_text = is_with_preliminary_text
         return new_run_params
 
     @property

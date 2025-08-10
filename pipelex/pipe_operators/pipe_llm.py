@@ -310,9 +310,13 @@ class PipeLLM(PipeOperator):
             )
         )
 
+        is_with_preliminary_text = (
+            self.structuring_method == StructuringMethod.PRELIMINARY_TEXT
+        ) or get_config().pipelex.structure_config.is_default_text_then_structure
         llm_prompt_run_params = PipeRunParams.copy_by_injecting_multiplicity(
             pipe_run_params=pipe_run_params,
             applied_output_multiplicity=applied_output_multiplicity,
+            is_with_preliminary_text=is_with_preliminary_text,
         )
         # llm_prompt_1: LLMPrompt = (
         #     await self.pipe_llm_prompt.run_pipe(
@@ -345,7 +349,8 @@ class PipeLLM(PipeOperator):
             log.debug(f"PipeLLM generating {fixed_nb_output} output(s)" if fixed_nb_output else "PipeLLM generating a list of output(s)")
 
             llm_prompt_2_factory: Optional[LLMPromptFactoryAbstract]
-            if structuring_method := self.structuring_method:
+            if self.structuring_method:
+                structuring_method = cast(StructuringMethod, self.structuring_method)
                 log.debug(f"PipeLLM pipe_code is '{self.code}' and structuring_method is '{structuring_method}'")
                 match structuring_method:
                     case StructuringMethod.DIRECT:

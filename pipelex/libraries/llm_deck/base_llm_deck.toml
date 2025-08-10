@@ -56,6 +56,7 @@ llm_for_question_and_excerpt_reformulation = { llm_handle = "gpt-4o", temperatur
 
 # Engineering skills
 llm_to_engineer = { llm_handle = "best-claude", temperature = 0.5 }
+llm_to_pipelex = { llm_handle = "gpt-5-mini", temperature = 0.5 }
 
 # Image skills
 llm_to_write_imgg_prompt = { llm_handle = "best-claude", temperature = 0.2 }
