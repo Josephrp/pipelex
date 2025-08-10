@@ -17,7 +17,7 @@ from pipelex.core.stuff_content import (
     TextAndImagesContent,
     TextContent,
 )
-from pipelex.libraries.pipeline_blueprint import PipelineLibraryBlueprint
+from pipelex.libraries.pipeline_blueprint import PipelineBlueprint
 from pipelex.libraries.pipelines.meta.pipeline_draft import PipelineDraft
 from pipelex.pipe_controllers.pipe_batch import PipeBatch
 from pipelex.pipe_controllers.pipe_batch_factory import PipeBatchFactory
@@ -88,7 +88,7 @@ class PipelexRegistryModels(RegistryModels):
         PDFContent,
         TextAndImagesContent,
         PageContent,
-        PipelineLibraryBlueprint,
+        PipelineBlueprint,
         PipelineDraft,
     ]
 

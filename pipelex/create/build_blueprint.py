@@ -13,7 +13,7 @@ from pipelex.create.pipeline_toml import save_pipeline_blueprint_toml_to_path
 from pipelex.exceptions import PipeDefinitionError, PipelexCLIError
 from pipelex.hub import get_library_manager
 from pipelex.libraries.library_manager import LibraryManager
-from pipelex.libraries.pipeline_blueprint import PipelineLibraryBlueprint
+from pipelex.libraries.pipeline_blueprint import PipelineBlueprint
 from pipelex.pipe_works.pipe_dry import dry_run_pipe_codes
 from pipelex.pipeline.execute import execute_pipeline
 from pipelex.tools.misc.file_utils import save_text_to_path
@@ -38,7 +38,7 @@ async def do_build_blueprint(
             "build_pipeline_rules": get_support_file(subpath="create/build_pipelines.md"),
         },
     )
-    blueprint = pipe_output.main_stuff_as(content_type=PipelineLibraryBlueprint)
+    blueprint = pipe_output.main_stuff_as(content_type=PipelineBlueprint)
     pretty_print(blueprint, title="Pipeline Blueprint")
     pipeline_draft = pipe_output.working_memory.get_stuff_as_str(name="pipeline_draft")
     pretty_print(pipeline_draft, title="Pipeline Draft")
@@ -66,8 +66,8 @@ async def do_build_blueprint(
         asyncio.run(dry_run_pipe_codes(pipe_codes=generated_pipe_codes))
 
 
-def _load_pipes_from_generated_blueprint(blueprint: PipelineLibraryBlueprint) -> None:
-    """Instantiate and register all pipes from a generated PipelineLibraryBlueprint.
+def _load_pipes_from_generated_blueprint(blueprint: PipelineBlueprint) -> None:
+    """Instantiate and register all pipes from a generated PipelineBlueprint.
 
     This constructs the appropriate typed PipeBlueprint for each pipe entry and
     uses LibraryManager.load_pipe_from_blueprint to create the Pipe, then adds it

@@ -6,7 +6,7 @@ import tomlkit
 from tomlkit import array, document, inline_table, table
 from tomlkit import string as tk_string
 
-from pipelex.libraries.pipeline_blueprint import PipelineLibraryBlueprint
+from pipelex.libraries.pipeline_blueprint import PipelineBlueprint
 from pipelex.tools.misc.file_utils import save_text_to_path
 from pipelex.tools.misc.json_utils import remove_none_values_from_dict
 from pipelex.tools.misc.toml_utils import clean_trailing_whitespace
@@ -113,7 +113,7 @@ def dict_to_toml(data: Mapping[str, Any]) -> str:
     return dumped_content
 
 
-def pipeline_blueprint_to_toml(blueprint: PipelineLibraryBlueprint) -> str:
+def pipeline_blueprint_to_toml(blueprint: PipelineBlueprint) -> str:
     blueprint_dict = blueprint.smart_dump()
     return dict_to_toml(data=blueprint_dict)
 
@@ -133,6 +133,6 @@ def save_toml_to_path(data: Dict[str, Any], path: str) -> None:
         file.write(cleaned_content)
 
 
-def save_pipeline_blueprint_toml_to_path(blueprint: PipelineLibraryBlueprint, path: str) -> None:
+def save_pipeline_blueprint_toml_to_path(blueprint: PipelineBlueprint, path: str) -> None:
     pipeline_blueprint_toml = pipeline_blueprint_to_toml(blueprint=blueprint)
     save_text_to_path(text=pipeline_blueprint_toml, path=path)

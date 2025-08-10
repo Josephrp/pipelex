@@ -30,8 +30,8 @@ from pipelex.libraries.library_manager_abstract import LibraryManagerAbstract
 from pipelex.libraries.pipeline_blueprint import (
     ConceptBlueprintError,
     PipeBlueprintError,
+    PipelineBlueprint,
     PipelineBlueprintValidationError,
-    PipelineLibraryBlueprint,
 )
 from pipelex.tools.class_registry_utils import ClassRegistryUtils
 from pipelex.tools.misc.file_utils import find_files_in_dir
@@ -212,11 +212,11 @@ class LibraryManager(LibraryManagerAbstract):
             nb_pipes_loaded = len(self.pipe_library.root) - nb_pipes_before
             log.verbose(f"Loaded {nb_pipes_loaded} pipes from '{toml_path.name}'")
 
-    def _load_blueprint_from_file(self, toml_path: Path) -> PipelineLibraryBlueprint:
+    def _load_blueprint_from_file(self, toml_path: Path) -> PipelineBlueprint:
         """Load and validate a pipeline blueprint from a TOML file."""
         try:
             toml_data = load_toml_from_path(path=str(toml_path))
-            blueprint = PipelineLibraryBlueprint.model_validate(toml_data)
+            blueprint = PipelineBlueprint.model_validate(toml_data)
             return blueprint
         except ValidationError as exc:
             error_msg = format_pydantic_validation_error(exc)
@@ -227,7 +227,7 @@ class LibraryManager(LibraryManagerAbstract):
         except Exception as exc:
             raise LibraryError(f"Failed to load TOML file '{toml_path}': {exc}") from exc
 
-    def _load_concepts_from_blueprint(self, blueprint: PipelineLibraryBlueprint, file_path: str):
+    def _load_concepts_from_blueprint(self, blueprint: PipelineBlueprint, file_path: str):
         """Load concepts from a validated blueprint."""
         for concept_name, concept_data in blueprint.concept.items():
             try:
@@ -255,7 +255,7 @@ class LibraryManager(LibraryManagerAbstract):
                     error_msg=error_msg,
                 ) from exc
 
-    def _load_pipes_from_blueprint(self, blueprint: PipelineLibraryBlueprint, file_path: str):
+    def _load_pipes_from_blueprint(self, blueprint: PipelineBlueprint, file_path: str):
         """Load pipes from a validated blueprint."""
         for pipe_name, pipe_data in blueprint.pipe.items():
             try:

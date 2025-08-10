@@ -34,8 +34,8 @@ class PipeBlueprintError(LibraryError):
         super().__init__(f"Error loading pipe '{pipe_name}' from '{file_path}': {error_msg}")
 
 
-class PipelineLibraryBlueprint(StructuredContent):
-    """Complete blueprint of a pipeline library TOML file."""
+class PipelineBlueprint(StructuredContent):
+    """Complete blueprint of a pipeline TOML definition."""
 
     # Domain information (required)
     domain: str
