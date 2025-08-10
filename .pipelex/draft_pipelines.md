@@ -7,6 +7,7 @@ This guide explains how to draft pipelines in natural language using markdown no
 Every pipeline execution maintains a `WorkingMemory` that acts as a shared data space. When a pipeline starts, the initial inputs are placed in this memory. As each pipe executes, its output is added to the memory with a specific name (the `result` name). Subsequent pipes can access any data in the memory by referencing these names.
 
 **Key Rules**: 
+
 - When a pipe produces an output with name `X`, any later pipe can use `X` as an input. The names must match exactly.
 - Controller pipes (PipeSequence, PipeParallel, PipeCondition) automatically inherit the input requirements of their nested operators - you don't need to specify their inputs explicitly.
 
@@ -35,24 +36,20 @@ Purpose: [What this pipeline does]
 
 ### Flow Section
 
-Describe the pipeline flow narratively, using a pseudo-code style that shows how data moves through WorkingMemory:
+Describe the pipeline flow using concise step notation:
 
 ```markdown
 ## Flow
 
 WorkingMemory starts with: {input_name, another_input}
 
-### Step 1: [Description]
-Use `input_name` to generate `intermediate_result`
-→ LLM[process]: (input_name) → intermediate_result
-   Purpose: Processes the input data
+### Step 1: Process input data
+LLM[process]: (input_name) → intermediate_result
 
 WorkingMemory now contains: {input_name, another_input, intermediate_result}
 
-### Step 2: [Description]
-Combine `intermediate_result` and `another_input` to create `final_output`
-→ LLM[synthesize]: (intermediate_result, another_input) → final_output
-   Purpose: Synthesizes the intermediate result with additional context
+### Step 2: Synthesize results with additional context
+LLM[synthesize]: (intermediate_result, another_input) → final_output
 
 WorkingMemory now contains: {input_name, another_input, intermediate_result, final_output}
 ```
@@ -65,66 +62,80 @@ Returns: `final_output` - Description of the final result
 
 ## Pipe Types and Notation
 
-### Sequential Processing (PipeSequence)
-```markdown
-Step 1: process_input → result_1
-Step 2: analyze(result_1) → result_2
-Step 3: finalize(result_2, original_input) → final_output
-```
-
-### Parallel Processing (PipeParallel)
-```markdown
-Parallel:
-  Branch A: process_method_a(input) → result_a
-  Branch B: process_method_b(input) → result_b
-Combine: merge(result_a, result_b) → combined_result
-```
-
-### Conditional Processing (PipeCondition)
-```markdown
-If expression(input_data):
-  Case "option_1": pipe_a(input_data) → result
-  Case "option_2": pipe_b(input_data) → result
-  Default: pipe_default(input_data) → result
-```
-
-### Batch Processing
-```markdown
-For each item in `list_of_items`:
-  process_single(item) → processed_item
-Collect all → processed_items_list
-```
-
 ## Operator Notations
 
 **Important**: During drafting, DO NOT write actual prompts or prompt templates. Focus on describing what each operator does and how data flows. Prompts will be written during implementation.
 
-### LLM Operations
+### LLM Operations (including vision, to generate text from text and images)
 ```markdown
 LLM[purpose]: (inputs) → output
-Example: LLM[summarize]: (long_text) → summary
-```
 
-Describe the purpose without the actual prompt:
-```markdown
+Examples:
+LLM[summarize]: (long_text) → summary
 LLM[analyze]: (document, criteria) → analysis
-  Purpose: Analyzes the document based on provided criteria
 ```
 
-### OCR Operations
+### OCR Operations (to extract text and images from PDF pages, including full page views)
 ```markdown
 OCR: (pdf_document) → pages_list
-Each page contains text and images
 ```
 
-### Image Generation
+### Image Generation (to generate images from text prompts)
 ```markdown
 ImgGen: (prompt_text) → generated_image
 ```
 
-### Function Operations
+### Function Operations (to call external python functions)
 ```markdown
-Func[calculate_metrics]: (data) → metrics
+Func[function_name]: (data) → result
+```
+
+### Sequential Processing (to run steps in sequence, use it when steps need results from previous steps)
+```markdown
+Step 1: Process input data
+process_input → result_1
+
+Step 2: Analyze processed results  
+analyze(result_1) → result_2
+
+Step 3: Finalize with original context
+finalize(result_2, original_input) → final_output
+```
+
+### Batch Processing (to process each item in a list independently and in parallel)
+```markdown
+Process each item in list_of_items:
+process_single(item) → processed_item
+
+Collect all results → processed_items_list
+```
+
+### Parallel Processing (to run different pipes in parallel from the same memory, use it when steps can be run independently, each with a copy of the working memory)
+```markdown
+Parallel execution:
+
+Branch A: Process applying pipe A
+pipe_a(input) → result_a
+
+Branch B: Process applying pipe B  
+pipe_b(input) → result_b
+
+Combine: Merge parallel results
+merge(result_a, result_b) → combined_result
+```
+
+### Conditional Processing (to run different pipes based on a condition)
+```markdown
+Route based on expression(input_data):
+
+Case "option_1": Handle option 1
+pipe_a(input_data) → result
+
+Case "option_2": Handle option 2
+pipe_b(input_data) → result
+
+Default: Handle other cases
+pipe_default(input_data) → result
 ```
 
 ## Memory Flow Examples
@@ -142,19 +153,22 @@ Purpose: Extract and analyze key information from documents
 
 WorkingMemory: {raw_document}
 
-### Step 1: Extract content
+### Step 1: Extract content from PDF
 OCR: (raw_document) → pages
+
 WorkingMemory: {raw_document, pages}
 
-### Step 2: Summarize each page
-For each page in pages:
-  LLM[summarize]: (page) → page_summary
-Collect all → page_summaries
+### Step 2: Summarize each page in parallel
+Process each page in pages:
+LLM[summarize]: (page) → page_summary
+
+Collect all results → page_summaries
+
 WorkingMemory: {raw_document, pages, page_summaries}
 
-### Step 3: Create final analysis
+### Step 3: Create comprehensive analysis from summaries
 LLM[synthesize]: (page_summaries) → final_analysis
-  Purpose: Creates comprehensive analysis from all page summaries
+
 WorkingMemory: {raw_document, pages, page_summaries, final_analysis}
 
 ## Output
@@ -175,22 +189,22 @@ Purpose: Route and respond to customer queries
 
 WorkingMemory: {query, context}
 
-### Step 1: Classify query type
+### Step 1: Classify query into support category
 LLM[classify]: (query) → query_type
-  Purpose: Classifies the query into a category
+
 WorkingMemory: {query, context, query_type}
 
-### Step 2: Route based on type
-If query_type:
-  Case "technical": 
-    LLM[technical_support]: (query, context) → response
-      Purpose: Provides technical support based on query and context
-  Case "billing":
-    LLM[billing_support]: (query, context) → response
-      Purpose: Handles billing-related queries with available context
-  Default:
-    LLM[general_support]: (query) → response
-      Purpose: Provides general assistance for unclassified queries
+### Step 2: Route to appropriate support handler
+Route based on query_type:
+
+Case "technical": Technical support handler
+LLM[technical_support]: (query, context) → response
+
+Case "billing": Billing support handler
+LLM[billing_support]: (query, context) → response
+
+Default: General support handler
+LLM[general_support]: (query) → response
 
 WorkingMemory: {query, context, query_type, response}
 
@@ -204,17 +218,19 @@ Returns: `response`
 
 2. **Show memory state**: After complex steps, show what's in WorkingMemory to track data flow.
 
-3. **Be explicit about inputs**: For each operator step, clearly indicate which items from WorkingMemory are being used. Controller pipes will automatically inherit these requirements.
+3. **Be explicit about inputs**: For each operator step, clearly indicate which items from WorkingMemory are being used.
 
 4. **Use descriptive names**: Instead of `result_1`, use `extracted_entities` or `summarized_content`.
 
-5. **No prompts during drafting**: Focus on describing WHAT each step does (its purpose), not HOW (the actual prompts). Prompts are implementation details added later.
+5. **Concise step descriptions**: Each step should have a clear title that describes what it accomplishes. Avoid repeating the same information in multiple places.
 
-6. **Block vs Inline references**:
+6. **No prompts during drafting**: Focus on describing WHAT each step does, not HOW (the actual prompts). Prompts are implementation details added later.
+
+7. **Block vs Inline references**:
    - Use `@variable_name` notation for block insertions (multi-line content)
    - Use `$variable_name` notation for inline insertions (single values in sentences)
 
-7. **Batch operations**: When processing lists, clearly indicate:
+8. **Batch operations**: When processing lists, clearly indicate:
    - What list is being iterated (`batch_over`)
    - What each item is called during processing (`batch_as`)
    - What the collected results are named
@@ -228,7 +244,7 @@ Before finalizing your draft:
 - [ ] The final output exists in WorkingMemory
 - [ ] Names are consistent throughout (no typos or variations)
 - [ ] The flow clearly shows data transformation from inputs to outputs
-- [ ] Each LLM step has a clear purpose (but no actual prompts yet)
+- [ ] Each step has a concise, non-repetitive description
 
 ## From Draft to Implementation
 
