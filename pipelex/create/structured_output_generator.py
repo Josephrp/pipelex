@@ -46,10 +46,10 @@ class StructuredOutputGenerator:
         self.enum_definitions: Dict[str, Dict[str, Any]] = {}  # Store enum definitions
 
     def generate_from_toml(self, toml_content: str) -> str:
-        """Generate Python module content from TOML structured output definitions.
+        """Generate Python module content from TOML structure and enum definitions.
 
         Args:
-            toml_content: TOML content containing schema and enum definitions
+            toml_content: TOML content containing structure and enum definitions
 
         Returns:
             Generated Python module content
@@ -62,18 +62,18 @@ class StructuredOutputGenerator:
             enum_defs = data["enum"]
             for enum_name, enum_def in enum_defs.items():  # type: ignore[attr-defined,union-attr]
                 self.enum_definitions[str(enum_name)] = dict(enum_def)  # type: ignore[arg-type]
-                enum_code = self._generate_enum(str(enum_name), dict(enum_def))  # type: ignore[arg-type]
+                enum_code = self.generate_enum(str(enum_name), dict(enum_def))  # type: ignore[arg-type]
                 enums.append(enum_code)
 
-        # Process schemas
-        if "schema" not in data:
-            raise ValueError("TOML must contain a 'schema' section")
+        # Process structures
+        if "structure" not in data:
+            raise ValueError("TOML must contain a 'structure' section")
 
-        schemas = data["schema"]
+        structures = data["structure"]
         classes: List[str] = []
 
-        for class_name, schema_def in schemas.items():  # type: ignore[attr-defined,union-attr]
-            class_code = self._generate_class(str(class_name), dict(schema_def))  # type: ignore[arg-type]
+        for class_name, structure_def in structures.items():  # type: ignore[attr-defined,union-attr]
+            class_code = self.generate_class(str(class_name), dict(structure_def))  # type: ignore[arg-type]
             classes.append(class_code)
 
         # Generate the complete module
@@ -90,7 +90,7 @@ class StructuredOutputGenerator:
 
         return f"{imports_section}\n\n\n{definitions_section}\n"
 
-    def _generate_enum(self, enum_name: str, enum_def: Dict[str, Any]) -> str:
+    def generate_enum(self, enum_name: str, enum_def: Dict[str, Any]) -> str:
         """Generate an enum class definition.
 
         Args:
@@ -131,18 +131,18 @@ class StructuredOutputGenerator:
         values_code = "\n".join(value_definitions)
         return enum_header + "\n" + values_code
 
-    def _generate_class(self, class_name: str, schema_def: Dict[str, Any]) -> str:
+    def generate_class(self, class_name: str, structure_def: Dict[str, Any]) -> str:
         """Generate a single class definition.
 
         Args:
             class_name: Name of the class
-            schema_def: Schema definition from TOML
+            structure_def: Structure definition from TOML
 
         Returns:
             Generated class code
         """
-        definition = schema_def.get("definition", f"Generated {class_name} class")
-        fields = schema_def.get("fields", {})
+        definition = structure_def.get("definition", f"Generated {class_name} class")
+        fields = structure_def.get("fields", {})
 
         # Generate class header
         class_header = f'class {class_name}(StructuredContent):\n    """{definition}"""\n'
@@ -283,7 +283,7 @@ def generate_structured_outputs_from_toml_file(toml_file_path: str, output_file_
     """Generate structured output Python module from TOML file.
 
     Args:
-        toml_file_path: Path to input TOML file
+        toml_file_path: Path to input TOML file containing structure definitions
         output_file_path: Path to output Python file
     """
     with open(toml_file_path, "r", encoding="utf-8") as f:
@@ -300,10 +300,51 @@ def generate_structured_outputs_from_toml_string(toml_content: str) -> str:
     """Generate structured output Python code from TOML string.
 
     Args:
-        toml_content: TOML content as string
+        toml_content: TOML content as string containing structure definitions
 
     Returns:
         Generated Python module content
     """
     generator = StructuredOutputGenerator()
     return generator.generate_from_toml(toml_content)
+
+
+def generate_structured_output_from_inline_definition(
+    class_name: str, fields_def: Dict[str, Any], enums: Optional[Dict[str, Dict[str, Any]]] = None
+) -> str:
+    """Generate structured output Python code from inline field definitions.
+
+    Args:
+        class_name: Name of the class to generate
+        fields_def: Dictionary of field definitions (same format as TOML structure.fields)
+        enums: Optional dictionary of enum definitions to include
+
+    Returns:
+        Generated Python module content
+    """
+    generator = StructuredOutputGenerator()
+
+    # Add any provided enums
+    if enums:
+        for enum_name, enum_def in enums.items():
+            generator.enum_definitions[enum_name] = enum_def
+
+    # Create a structure definition from the inline fields
+    structure_def = {"definition": f"Generated {class_name} structure", "fields": fields_def}
+
+    # Generate the class
+    class_code = generator.generate_class(class_name, structure_def)
+
+    # Generate enums if any
+    enum_codes: List[str] = []
+    if enums:
+        for enum_name, enum_def in enums.items():
+            enum_code = generator.generate_enum(enum_name, enum_def)
+            enum_codes.append(enum_code)
+
+    # Combine everything
+    imports_section = "\n".join(sorted(generator.imports))
+    all_definitions: List[str] = enum_codes + [class_code] if enum_codes else [class_code]
+    definitions_section = "\n\n\n".join(all_definitions)
+
+    return f"{imports_section}\n\n\n{definitions_section}\n"

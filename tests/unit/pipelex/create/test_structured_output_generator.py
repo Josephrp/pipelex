@@ -6,18 +6,19 @@ from pipelex import pretty_print
 from pipelex.create.structured_output_generator import (
     FieldType,
     StructuredOutputGenerator,
+    generate_structured_output_from_inline_definition,
     generate_structured_outputs_from_toml_string,
 )
 
 
 class TestStructuredOutputGenerator:
-    def test_simple_schema_generation(self):
-        """Test generation of a simple schema with basic fields."""
+    def test_simple_structure_generation(self):
+        """Test generation of a simple structure with basic fields."""
         toml_content = """
-[schema.TestModel]
+[structure.TestModel]
 definition = "A test model"
 
-[schema.TestModel.fields]
+[structure.TestModel.fields]
 name = { type = "text", definition = "Name field", required = true }
 age = { type = "integer", definition = "Age field" }
 active = { type = "boolean", definition = "Active status", default = true }
@@ -42,10 +43,10 @@ active = { type = "boolean", definition = "Active status", default = true }
     def test_simplified_field_syntax(self):
         """Test the simplified field syntax where a field is just a string definition."""
         toml_content = """
-[schema.SimpleModel]
+[structure.SimpleModel]
 definition = "A model with simplified field syntax"
 
-[schema.SimpleModel.fields]
+[structure.SimpleModel.fields]
 dominant_feature = "The most important or dominant feature in the image"
 simple_text = "Just some text"
 """
@@ -62,10 +63,10 @@ simple_text = "Just some text"
     def test_complex_types_generation(self):
         """Test generation with complex types like lists and dicts."""
         toml_content = """
-[schema.ComplexModel]
+[structure.ComplexModel]
 definition = "A model with complex types"
 
-[schema.ComplexModel.fields]
+[structure.ComplexModel.fields]
 tags = { type = "list", item_type = "text", definition = "List of tags" }
 metadata = { type = "dict", key_type = "text", value_type = "text", definition = "Metadata dictionary" }
 scores = { type = "list", item_type = "number", definition = "List of scores", required = true }
@@ -81,19 +82,19 @@ scores = { type = "list", item_type = "number", definition = "List of scores", r
         assert 'metadata: Optional[Dict[str, str]] = Field(default=None, description="Metadata dictionary")' in result
         assert 'scores: List[float] = Field(..., description="List of scores")' in result
 
-    def test_multiple_schemas(self):
-        """Test generation of multiple schemas in one TOML."""
+    def test_multiple_structures(self):
+        """Test generation of multiple structures in one TOML."""
         toml_content = """
-[schema.FirstModel]
+[structure.FirstModel]
 definition = "First model"
 
-[schema.FirstModel.fields]
+[structure.FirstModel.fields]
 title = { type = "text", definition = "Title", required = true }
 
-[schema.SecondModel]  
+[structure.SecondModel]  
 definition = "Second model"
 
-[schema.SecondModel.fields]
+[structure.SecondModel.fields]
 content = { type = "text", definition = "Content" }
 """
 
@@ -108,10 +109,10 @@ content = { type = "text", definition = "Content" }
         assert '"""First model"""' in result
         assert '"""Second model"""' in result
 
-    def test_empty_schema(self):
-        """Test generation of schema with no fields."""
+    def test_empty_structure(self):
+        """Test generation of structure with no fields."""
         toml_content = """
-[schema.EmptyModel]
+[structure.EmptyModel]
 definition = "An empty model"
 """
 
@@ -128,10 +129,10 @@ definition = "An empty model"
     def test_required_field_syntax(self):
         """Test that fields can be marked as required."""
         toml_content = """
-[schema.RequiredFieldsModel]
+[structure.RequiredFieldsModel]
 definition = "Model with required fields"
 
-[schema.RequiredFieldsModel.fields]
+[structure.RequiredFieldsModel.fields]
 title = { type = "text", definition = "Required title", required = true }
 optional_field = { type = "text", definition = "Optional field" }
 """
@@ -148,10 +149,10 @@ optional_field = { type = "text", definition = "Optional field" }
     def test_custom_types(self):
         """Test handling of custom/unknown types."""
         toml_content = """
-[schema.CustomTypeModel]
+[structure.CustomTypeModel]
 definition = "Model with custom types"
 
-[schema.CustomTypeModel.fields]
+[structure.CustomTypeModel.fields]
 custom_field = { type = "CustomClass", definition = "Custom class field" }
 """
 
@@ -163,8 +164,8 @@ custom_field = { type = "CustomClass", definition = "Custom class field" }
 
         assert 'custom_field: Optional[CustomClass] = Field(default=None, description="Custom class field")' in result
 
-    def test_missing_schema_section_raises_error(self):
-        """Test that missing schema section raises appropriate error."""
+    def test_missing_structure_section_raises_error(self):
+        """Test that missing structure section raises appropriate error."""
         toml_content = """
 [other_section]
 value = "test"
@@ -174,16 +175,16 @@ value = "test"
 
         pretty_print(toml_content, title="Source TOML (should raise error)")
 
-        with pytest.raises(ValueError, match="TOML must contain a 'schema' section"):
+        with pytest.raises(ValueError, match="TOML must contain a 'structure' section"):
             generator.generate_from_toml(toml_content)
 
     def test_generate_from_string_convenience_function(self):
         """Test the convenience function for generating from string."""
         toml_content = """
-[schema.ConvenienceTest]
+[structure.ConvenienceTest]
 definition = "Test convenience function"
 
-[schema.ConvenienceTest.fields]
+[structure.ConvenienceTest.fields]
 value = { type = "text", definition = "Test value", required = true }
 """
 
@@ -198,10 +199,10 @@ value = { type = "text", definition = "Test value", required = true }
     def test_field_type_enum_usage(self):
         """Test that FieldType enum values are properly handled."""
         toml_content = """
-[schema.TypeMappingTest]
+[structure.TypeMappingTest]
 definition = "Test all type mappings"
 
-[schema.TypeMappingTest.fields]
+[structure.TypeMappingTest.fields]
 text_field = { type = "text", definition = "Text field" }
 number_field = { type = "number", definition = "Number field" }
 integer_field = { type = "integer", definition = "Integer field" }
@@ -226,10 +227,10 @@ dict_field = { type = "dict", key_type = "text", value_type = "integer", definit
     def test_mixed_field_syntax(self):
         """Test mixing simplified syntax with full field definitions."""
         toml_content = """
-[schema.MixedSyntaxModel]
+[structure.MixedSyntaxModel]
 definition = "Model with mixed field syntax"
 
-[schema.MixedSyntaxModel.fields]
+[structure.MixedSyntaxModel.fields]
 # Simplified syntax
 simple_description = "A simple text description"
 # Full syntax
@@ -254,10 +255,10 @@ another_simple = "Another simple field"
 definition = "Possible states of an order"
 values = ["pending", "processing", "shipped", "delivered", "cancelled"]
 
-[schema.Order]
+[structure.Order]
 definition = "An order in the system"
 
-[schema.Order.fields]
+[structure.Order.fields]
 order_id = "Unique identifier for the order"
 status = { type = "OrderStatus", definition = "Current status of the order", required = true }
 customer_name = "Name of the customer"
@@ -295,10 +296,10 @@ medium = "Medium Priority"
 high = "High Priority"
 urgent = "Urgent - Handle Immediately"
 
-[schema.Task]
+[structure.Task]
 definition = "A task to be completed"
 
-[schema.Task.fields]
+[structure.Task.fields]
 title = "Task title"
 priority = { type = "Priority", definition = "How urgent is this task", required = true }
 assigned_to = "Person responsible for the task"
@@ -324,10 +325,10 @@ assigned_to = "Person responsible for the task"
     def test_inline_choices(self):
         """Test generation with inline choices (Literal type)."""
         toml_content = """
-[schema.Product]
+[structure.Product]
 definition = "A product in our catalog"
 
-[schema.Product.fields]
+[structure.Product.fields]
 name = "Product name"
 category = { choices = ["electronics", "clothing", "food", "books"], definition = "Product category", required = true }
 size = { choices = ["XS", "S", "M", "L", "XL"], definition = "Size of the product" }
@@ -355,10 +356,10 @@ values = ["red", "blue", "green", "yellow", "black", "white"]
 definition = "How the product will be shipped"
 values = ["standard", "express", "overnight", "pickup"]
 
-[schema.ProductVariant]
+[structure.ProductVariant]
 definition = "A specific variant of a product"
 
-[schema.ProductVariant.fields]
+[structure.ProductVariant.fields]
 sku = "Stock keeping unit"
 color = { type = "Color", definition = "Color of this variant" }
 size = { choices = ["S", "M", "L"], definition = "Size options" }
@@ -392,10 +393,10 @@ availability = { choices = ["in_stock", "out_of_stock", "pre_order"], definition
 definition = "Dietary restrictions and preferences"
 values = ["vegetarian", "vegan", "gluten_free", "dairy_free", "nut_free"]
 
-[schema.MenuItem]
+[structure.MenuItem]
 definition = "An item on the restaurant menu"
 
-[schema.MenuItem.fields]
+[structure.MenuItem.fields]
 name = "Name of the dish"
 dietary_info = { type = "list", item_type = "DietaryRestriction", definition = "Dietary accommodations" }
 tags = { type = "list", item_type = "text", definition = "General tags" }
@@ -415,3 +416,41 @@ tags = { type = "list", item_type = "text", definition = "General tags" }
         # Check list with enum type
         assert 'dietary_info: Optional[List[DietaryRestriction]] = Field(default=None, description="Dietary accommodations")' in result
         assert 'tags: Optional[List[str]] = Field(default=None, description="General tags")' in result
+
+    def test_inline_structure_definition(self):
+        """Test generating structure from inline field definitions (for concept integration)."""
+        fields_def = {
+            "document_type": {"type": "DocumentType", "definition": "Classified document type", "required": True},
+            "priority": {"type": "Priority", "definition": "Processing priority", "required": True},
+            "title": "Inferred document title",
+            "summary": "Brief document summary",
+            "page_count": {"type": "integer", "definition": "Total number of pages"},
+            "language": {"choices": ["en", "fr", "es", "de"], "definition": "Document language"},
+        }
+
+        enums = {
+            "DocumentType": {
+                "definition": "Types of documents we can process",
+                "values": ["technical", "legal", "financial", "marketing", "general"],
+            },
+            "Priority": {"definition": "Document processing priority", "values": ["low", "medium", "high", "urgent"]},
+        }
+
+        result = generate_structured_output_from_inline_definition("DocumentMetadata", fields_def, enums)
+
+        pretty_print(fields_def, title="Inline Field Definition")
+        pretty_print(result, title="Generated Result")
+
+        # Check enum generation
+        assert "class DocumentType(str, Enum):" in result
+        assert "class Priority(str, Enum):" in result
+        assert 'TECHNICAL = "technical"' in result
+        assert 'LOW = "low"' in result
+
+        # Check structure generation
+        assert "class DocumentMetadata(StructuredContent):" in result
+        assert 'document_type: DocumentType = Field(..., description="Classified document type")' in result
+        assert 'priority: Priority = Field(..., description="Processing priority")' in result
+        assert 'title: Optional[str] = Field(default=None, description="Inferred document title")' in result
+        assert 'page_count: Optional[int] = Field(default=None, description="Total number of pages")' in result
+        assert "language: Optional[Literal['en', 'fr', 'es', 'de']] = Field(default=None, description=\"Document language\")" in result
