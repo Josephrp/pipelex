@@ -246,3 +246,172 @@ another_simple = "Another simple field"
         assert 'simple_description: Optional[str] = Field(default=None, description="A simple text description")' in result
         assert 'complex_field: int = Field(..., description="A complex field")' in result
         assert 'another_simple: Optional[str] = Field(default=None, description="Another simple field")' in result
+
+    def test_enum_generation_simple_list(self):
+        """Test generation of enum with simple list of values."""
+        toml_content = """
+[enum.OrderStatus]
+definition = "Possible states of an order"
+values = ["pending", "processing", "shipped", "delivered", "cancelled"]
+
+[schema.Order]
+definition = "An order in the system"
+
+[schema.Order.fields]
+order_id = "Unique identifier for the order"
+status = { type = "OrderStatus", definition = "Current status of the order", required = true }
+customer_name = "Name of the customer"
+"""
+
+        generator = StructuredOutputGenerator()
+        result = generator.generate_from_toml(toml_content)
+
+        pretty_print(toml_content, title="Source TOML")
+        pretty_print(result, title="Generated Result")
+
+        # Check enum generation
+        assert "from enum import Enum" in result
+        assert "class OrderStatus(str, Enum):" in result
+        assert '"""Possible states of an order"""' in result
+        assert 'PENDING = "pending"' in result
+        assert 'PROCESSING = "processing"' in result
+        assert 'SHIPPED = "shipped"' in result
+        assert 'DELIVERED = "delivered"' in result
+        assert 'CANCELLED = "cancelled"' in result
+
+        # Check schema using the enum
+        assert "class Order(StructuredContent):" in result
+        assert 'status: OrderStatus = Field(..., description="Current status of the order")' in result
+
+    def test_enum_generation_with_descriptions(self):
+        """Test generation of enum with key-value pairs (descriptions)."""
+        toml_content = """
+[enum.Priority]
+definition = "Task priority levels"
+
+[enum.Priority.values]
+low = "Low Priority"
+medium = "Medium Priority"
+high = "High Priority"
+urgent = "Urgent - Handle Immediately"
+
+[schema.Task]
+definition = "A task to be completed"
+
+[schema.Task.fields]
+title = "Task title"
+priority = { type = "Priority", definition = "How urgent is this task", required = true }
+assigned_to = "Person responsible for the task"
+"""
+
+        generator = StructuredOutputGenerator()
+        result = generator.generate_from_toml(toml_content)
+
+        pretty_print(toml_content, title="Source TOML")
+        pretty_print(result, title="Generated Result")
+
+        # Check enum generation with descriptions
+        assert "class Priority(str, Enum):" in result
+        assert '"""Task priority levels"""' in result
+        assert 'LOW = "low"  # Low Priority' in result
+        assert 'MEDIUM = "medium"  # Medium Priority' in result
+        assert 'HIGH = "high"  # High Priority' in result
+        assert 'URGENT = "urgent"  # Urgent - Handle Immediately' in result
+
+        # Check schema using the enum
+        assert 'priority: Priority = Field(..., description="How urgent is this task")' in result
+
+    def test_inline_choices(self):
+        """Test generation with inline choices (Literal type)."""
+        toml_content = """
+[schema.Product]
+definition = "A product in our catalog"
+
+[schema.Product.fields]
+name = "Product name"
+category = { choices = ["electronics", "clothing", "food", "books"], definition = "Product category", required = true }
+size = { choices = ["XS", "S", "M", "L", "XL"], definition = "Size of the product" }
+"""
+
+        generator = StructuredOutputGenerator()
+        result = generator.generate_from_toml(toml_content)
+
+        pretty_print(toml_content, title="Source TOML")
+        pretty_print(result, title="Generated Result")
+
+        # Check Literal type usage
+        assert "from typing import Optional, List, Dict, Any, Literal" in result
+        assert "category: Literal['electronics', 'clothing', 'food', 'books'] = Field(..., description=\"Product category\")" in result
+        assert "size: Optional[Literal['XS', 'S', 'M', 'L', 'XL']] = Field(default=None, description=\"Size of the product\")" in result
+
+    def test_mixed_enums_and_inline_choices(self):
+        """Test combining enum references and inline choices in the same schema."""
+        toml_content = """
+[enum.Color]
+definition = "Available colors"
+values = ["red", "blue", "green", "yellow", "black", "white"]
+
+[enum.ShippingMethod]
+definition = "How the product will be shipped"
+values = ["standard", "express", "overnight", "pickup"]
+
+[schema.ProductVariant]
+definition = "A specific variant of a product"
+
+[schema.ProductVariant.fields]
+sku = "Stock keeping unit"
+color = { type = "Color", definition = "Color of this variant" }
+size = { choices = ["S", "M", "L"], definition = "Size options" }
+shipping_method = { type = "ShippingMethod", definition = "Shipping option", required = true }
+availability = { choices = ["in_stock", "out_of_stock", "pre_order"], definition = "Current availability" }
+"""
+
+        generator = StructuredOutputGenerator()
+        result = generator.generate_from_toml(toml_content)
+
+        pretty_print(toml_content, title="Source TOML")
+        pretty_print(result, title="Generated Result")
+
+        # Check enums are generated
+        assert "class Color(str, Enum):" in result
+        assert "class ShippingMethod(str, Enum):" in result
+
+        # Check mixed usage in schema
+        assert 'color: Optional[Color] = Field(default=None, description="Color of this variant")' in result
+        assert "size: Optional[Literal['S', 'M', 'L']] = Field(default=None, description=\"Size options\")" in result
+        assert 'shipping_method: ShippingMethod = Field(..., description="Shipping option")' in result
+        assert (
+            "availability: Optional[Literal['in_stock', 'out_of_stock', 'pre_order']] = Field(default=None, description=\"Current availability\")"
+            in result
+        )
+
+    def test_enum_in_list_field(self):
+        """Test using enum types in list fields."""
+        toml_content = """
+[enum.DietaryRestriction]
+definition = "Dietary restrictions and preferences"
+values = ["vegetarian", "vegan", "gluten_free", "dairy_free", "nut_free"]
+
+[schema.MenuItem]
+definition = "An item on the restaurant menu"
+
+[schema.MenuItem.fields]
+name = "Name of the dish"
+dietary_info = { type = "list", item_type = "DietaryRestriction", definition = "Dietary accommodations" }
+tags = { type = "list", item_type = "text", definition = "General tags" }
+"""
+
+        generator = StructuredOutputGenerator()
+        result = generator.generate_from_toml(toml_content)
+
+        pretty_print(toml_content, title="Source TOML")
+        pretty_print(result, title="Generated Result")
+
+        # Check enum is generated
+        assert "class DietaryRestriction(str, Enum):" in result
+        assert 'VEGETARIAN = "vegetarian"' in result
+        assert 'GLUTEN_FREE = "gluten_free"' in result
+
+        # Check list with enum type
+        assert 'dietary_info: Optional[List[DietaryRestriction]] = Field(default=None, description="Dietary accommodations")' in result
+        assert 'tags: Optional[List[str]] = Field(default=None, description="General tags")' in result
