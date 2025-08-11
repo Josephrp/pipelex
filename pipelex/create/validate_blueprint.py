@@ -9,6 +9,7 @@ from pipelex.libraries.library_manager import LibraryManager
 from pipelex.libraries.pipeline_blueprint import PipelineBlueprint
 from pipelex.pipe_controllers.pipe_controller import PipeController
 from pipelex.pipe_works.pipe_dry import dry_run_pipe_codes
+from pipelex.tools.misc.dict_utils import insert_before
 
 
 async def validate_blueprint(blueprint: PipelineBlueprint, is_error_fixing_enabled: bool) -> None:
@@ -37,11 +38,20 @@ async def validate_blueprint(blueprint: PipelineBlueprint, is_error_fixing_enabl
                         if not required_concept_codes:
                             raise PipelexCLIError(f"No required concept codes found for static validation error: {static_validation_error}")
                         log.error(f"❌ Missing: {variable_names} / concepts: {required_concept_codes}")
+                        new_inputs: Dict[str, Any] = blueprint.pipe[pipe_code].get("inputs") or {}
                         for variable_name, concept_code in zip(variable_names, required_concept_codes):
-                            if "inputs" not in blueprint.pipe[pipe_code]:
-                                blueprint.pipe[pipe_code]["inputs"] = {}
-                            blueprint.pipe[pipe_code]["inputs"][variable_name] = concept_code
+                            new_inputs[variable_name] = concept_code
                             log.info(f"✅ Added: {variable_name} / {concept_code}")
+                        if "inputs" in blueprint.pipe[pipe_code]:
+                            blueprint.pipe[pipe_code]["inputs"] = new_inputs
+                        else:
+                            blueprint.pipe[pipe_code] = insert_before(
+                                blueprint.pipe[pipe_code],
+                                "output",
+                                "inputs",
+                                new_inputs,
+                            )
+                        log.dev(f"✅ Fixed missing inputs for pipe '{pipe_code}'")
                         await validate_blueprint(blueprint=blueprint, is_error_fixing_enabled=True)
                     else:
                         raise PipelexCLIError(f"Unexpected validation error:\n{static_validation_error}") from static_validation_error

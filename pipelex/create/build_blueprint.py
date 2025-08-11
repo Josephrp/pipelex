@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Optional
 
 from pipelex import log, pretty_print
@@ -39,9 +38,9 @@ async def do_build_blueprint(
     output_path_base = output_path or "pipelex/libraries/pipelines/temp/gen_blueprint"
     draft_path = f"{output_path_base}_draft.md"
     save_text_to_path(text=pipeline_draft, path=draft_path)
-    rough_toml_path = f"{output_path_base}.toml"
+    rough_toml_path = f"{output_path_base}_rough.toml"
     save_pipeline_blueprint_toml_to_path(blueprint=blueprint, path=rough_toml_path)
-    rough_json_path = f"{output_path_base}.json"
+    rough_json_path = f"{output_path_base}_rough.json"
     save_as_json_to_path(object_to_save=blueprint, path=rough_json_path)
     log.info(f"✅ Rough blueprint saved to '{output_path_base}'")
 
