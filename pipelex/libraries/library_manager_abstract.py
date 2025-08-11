@@ -19,3 +19,7 @@ class LibraryManagerAbstract(ABC):
     @abstractmethod
     def get_plugin_config_path(self) -> str:
         pass
+
+    @abstractmethod
+    def validate_libraries(self) -> None:
+        pass

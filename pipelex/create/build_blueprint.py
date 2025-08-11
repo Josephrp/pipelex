@@ -142,6 +142,9 @@ async def validate_blueprint(blueprint_path: str) -> None:
     log.info(f"Loaded pipes: {generated_pipe_codes}")
 
     # Run validation
-    log.info("Validating pipes...")
+    log.info("Validating pipes ----------------------")
+    log.info("Validating libraries ----------------------")
+    get_library_manager().validate_libraries()
+    log.info("Dry running pipes...")
     await dry_run_pipe_codes(pipe_codes=generated_pipe_codes)
     log.info(f"✅ All pipes validated successfully: {generated_pipe_codes}")

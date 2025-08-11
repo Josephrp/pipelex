@@ -274,6 +274,7 @@ class LibraryManager(LibraryManagerAbstract):
                     error_msg=error_msg,
                 ) from exc
 
+    @override
     def validate_libraries(self):
         log.debug("LibraryManager validating libraries")
         if self.llm_deck is None:
@@ -459,7 +460,7 @@ Old syntax will be removed in v0.3.0.
         log.dev("Making Pipe blueprint")
         # Determine pipe class name from details
         if "type" in details_dict and "definition" in details_dict:
-            pipe_class_name = details_dict["type"]
+            pipe_class_name = details_dict.pop("type")
             normalized_details = details_dict.copy()
             log.dev(f"New format, pipe_class_name: {pipe_class_name}")
             log.dev(f"Normalized details: {normalized_details}")
