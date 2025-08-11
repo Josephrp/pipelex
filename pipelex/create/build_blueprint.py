@@ -18,6 +18,7 @@ from pipelex.pipe_works.pipe_dry import dry_run_pipe_codes
 from pipelex.pipeline.execute import execute_pipeline
 from pipelex.tools.misc.file_utils import save_text_to_path
 from pipelex.tools.misc.json_utils import save_as_json_to_path
+from pipelex.tools.misc.toml_utils import load_toml_from_path
 from pipelex.tools.typing.pydantic_utils import format_pydantic_validation_error
 
 
@@ -103,3 +104,44 @@ def _load_pipes_from_generated_blueprint(blueprint: PipelineBlueprint) -> None:
             pipe_blueprint=pipe_blueprint,
         )
         library_manager.pipe_library.add_new_pipe(pipe=pipe)
+
+
+async def validate_blueprint(blueprint_path: str) -> None:
+    """Validate an already generated pipeline blueprint from a TOML file.
+
+    Args:
+        blueprint_path: Path to the blueprint TOML file to validate
+
+    Raises:
+        PipelexCLIError: If validation fails
+        ValidationError: If the TOML structure doesn't match PipelineBlueprint
+    """
+    # Load the TOML file
+    log.info(f"Loading blueprint from '{blueprint_path}'...")
+    blueprint_dict = load_toml_from_path(path=blueprint_path)
+
+    # Validate and create PipelineBlueprint model
+    try:
+        blueprint = PipelineBlueprint.model_validate(blueprint_dict)
+    except ValidationError as exc:
+        error_msg = format_pydantic_validation_error(exc=exc)
+        raise PipelexCLIError(f"Invalid blueprint structure in '{blueprint_path}': {error_msg}") from exc
+
+    log.info(f"Blueprint loaded successfully: domain='{blueprint.domain}'")
+
+    # Load pipes from the blueprint
+    try:
+        _load_pipes_from_generated_blueprint(blueprint=blueprint)
+    except PipeDefinitionError as exc:
+        raise PipelexCLIError(f"Failed to load pipes from blueprint at '{blueprint_path}': {exc}") from exc
+
+    # Get pipe codes and validate them
+    generated_pipe_codes = list(blueprint.pipe.keys())
+    if not generated_pipe_codes:
+        raise PipelexCLIError("No pipe found in blueprint to validate")
+    log.info(f"Loaded pipes: {generated_pipe_codes}")
+
+    # Run validation
+    log.info("Validating pipes...")
+    await dry_run_pipe_codes(pipe_codes=generated_pipe_codes)
+    log.info(f"✅ All pipes validated successfully: {generated_pipe_codes}")
