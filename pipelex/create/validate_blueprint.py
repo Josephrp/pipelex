@@ -19,12 +19,6 @@ async def validate_blueprint(blueprint: PipelineBlueprint, is_error_fixing_enabl
     except PipeDefinitionError as exc:
         raise PipelexCLIError(f"Failed to load pipes from blueprint for domain '{blueprint.desc}': {exc}") from exc
 
-    # try:
-    #     await validate_loaded_blueprint(blueprint=blueprint)
-    # except StaticValidationError as exc:
-    #     # raise PipelexCLIError(f"Validation failed:\n{exc}") from exc
-    #     log.error(f"❌ Validation failed:\n{exc}")
-
     try:
         await validate_loaded_blueprint(blueprint=blueprint)
     except StaticValidationError as static_validation_error:
@@ -36,8 +30,6 @@ async def validate_blueprint(blueprint: PipelineBlueprint, is_error_fixing_enabl
                         raise PipelexCLIError(f"No pipe code found for static validation error: {static_validation_error}")
                     pipe = get_required_pipe(pipe_code=pipe_code)
                     if isinstance(pipe, PipeController):
-                        # log.error(f"❌ Validation failed:\n{static_validation_error}")
-                        # log.error(f"❌ Missing input variable: {static_validation_error.variable_names}")
                         variable_names = static_validation_error.variable_names
                         required_concept_codes = static_validation_error.required_concept_codes
                         if not variable_names:
@@ -55,7 +47,11 @@ async def validate_blueprint(blueprint: PipelineBlueprint, is_error_fixing_enabl
                         raise PipelexCLIError(f"Unexpected validation error:\n{static_validation_error}") from static_validation_error
                 else:
                     raise static_validation_error
-            case _:
+            case (
+                StaticValidationErrorType.EXTRANEOUS_INPUT_VARIABLE
+                | StaticValidationErrorType.INADEQUATE_INPUT_CONCEPT
+                | StaticValidationErrorType.TOO_MANY_CANDIDATE_INPUTS
+            ):
                 raise static_validation_error
     log.info("✅ Validation passed")
 
@@ -83,16 +79,6 @@ def load_pipes_from_generated_blueprint(blueprint: PipelineBlueprint, updates_al
 
     for pipe_code, details in blueprint.pipe.items():
         details_dict: Dict[str, Any] = details.copy()
-
-        # Build the concrete PipeBlueprint via LibraryManager helper
-        # try:
-        #     pipe_blueprint = LibraryManager.make_pipe_blueprint_from_details(
-        #         domain_code=domain_code,
-        #         details_dict=details_dict,
-        #     )
-        # except ValidationError as exc:
-        #     error_msg = format_pydantic_validation_error(exc=exc)
-        #     raise PipeDefinitionError(f"Failed to build pipe blueprint for pipe '{pipe_code}': {error_msg}\n{exc}") from exc
 
         pipe_blueprint = LibraryManager.make_pipe_blueprint_from_details(
             domain_code=domain_code,

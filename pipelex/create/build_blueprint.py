@@ -8,7 +8,7 @@ import typer
 from pipelex import log, pretty_print
 from pipelex.create.helpers import get_support_file
 from pipelex.create.pipeline_toml import save_pipeline_blueprint_toml_to_path
-from pipelex.create.validate_blueprint import load_pipes_from_generated_blueprint, validate_loaded_blueprint
+from pipelex.create.validate_blueprint import load_pipes_from_generated_blueprint, validate_blueprint
 from pipelex.exceptions import PipelexCLIError, StaticValidationError, StaticValidationErrorType
 from pipelex.hub import get_library_manager, get_required_pipe
 from pipelex.libraries.pipeline_blueprint import PipelineBlueprint
@@ -55,26 +55,4 @@ async def do_build_blueprint(
     log.info("✅ Pipes loaded from blueprint")
 
     if validate:
-        try:
-            await validate_loaded_blueprint(blueprint=blueprint)
-        except StaticValidationError as static_validation_error:
-            match static_validation_error.error_type:
-                case StaticValidationErrorType.MISSING_INPUT_VARIABLE:
-                    pipe_code = static_validation_error.pipe_code
-                    if not pipe_code:
-                        raise PipelexCLIError(f"No pipe code found for static validation error: {static_validation_error}")
-                    pipe = get_required_pipe(pipe_code=pipe_code)
-                    if isinstance(pipe, PipeController):
-                        log.error(f"❌ Validation failed:\n{static_validation_error}")
-                        log.error(f"❌ Missing input variable: {static_validation_error.variable_names}")
-                        log.error(f"❌ Provided concept code: {static_validation_error.provided_concept_code}")
-                        log.error(f"❌ File path: {static_validation_error.file_path}")
-                case _:
-                    raise static_validation_error
-
-
-# def recap_inputs_for_controller_pipes(blueprint: PipelineBlueprint) -> None:
-#     pipe_codes = list(blueprint.pipe.keys())
-#     for pipe_code in pipe_codes:
-#         pipe = get_required_pipe(pipe_code=pipe_code)
-#         if isinstance(pipe, PipeController):
+        await validate_blueprint(blueprint=blueprint, is_error_fixing_enabled=True)
