@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional, cast
 import typer
 from pydantic import ValidationError
 
-from pipelex import pretty_print
+from pipelex import log, pretty_print
 from pipelex.create.helpers import get_support_file
 from pipelex.create.pipeline_toml import save_pipeline_blueprint_toml_to_path
 from pipelex.exceptions import PipeDefinitionError, PipelexCLIError
@@ -63,7 +63,11 @@ async def do_build_blueprint(
         generated_pipe_codes = list(blueprint.pipe.keys())
         if not generated_pipe_codes:
             raise PipelexCLIError("No pipe found in generated blueprint to validate")
+        log.info(f"Loaded pipes: {generated_pipe_codes}")
+
+        log.info("Validating pipes...")
         asyncio.run(dry_run_pipe_codes(pipe_codes=generated_pipe_codes))
+        log.info(f"Pipes validated: {generated_pipe_codes}")
 
 
 def _load_pipes_from_generated_blueprint(blueprint: PipelineBlueprint) -> None:
@@ -80,15 +84,19 @@ def _load_pipes_from_generated_blueprint(blueprint: PipelineBlueprint) -> None:
         details_dict: Dict[str, Any] = details.copy()
 
         # Build the concrete PipeBlueprint via LibraryManager helper
-        try:
-            pipe_blueprint = LibraryManager.make_pipe_blueprint_from_details(
-                domain_code=domain_code,
-                details_dict=details_dict,
-            )
-        except ValidationError as exc:
-            error_msg = format_pydantic_validation_error(exc=exc)
-            raise PipeDefinitionError(f"Failed to build pipe blueprint for pipe '{pipe_code}': {error_msg}") from exc
+        # try:
+        #     pipe_blueprint = LibraryManager.make_pipe_blueprint_from_details(
+        #         domain_code=domain_code,
+        #         details_dict=details_dict,
+        #     )
+        # except ValidationError as exc:
+        #     error_msg = format_pydantic_validation_error(exc=exc)
+        #     raise PipeDefinitionError(f"Failed to build pipe blueprint for pipe '{pipe_code}': {error_msg}\n{exc}") from exc
 
+        pipe_blueprint = LibraryManager.make_pipe_blueprint_from_details(
+            domain_code=domain_code,
+            details_dict=details_dict,
+        )
         # Create pipe and register in library
         pipe = LibraryManager.load_pipe_from_blueprint(
             pipe_code=pipe_code,

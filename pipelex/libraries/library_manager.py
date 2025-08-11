@@ -456,18 +456,24 @@ Old syntax will be removed in v0.3.0.
         new and legacy formats), locates the corresponding <PipeClassName>Blueprint
         in the factory module, and validates the blueprint.
         """
+        log.dev("Making Pipe blueprint")
         # Determine pipe class name from details
         if "type" in details_dict and "definition" in details_dict:
             pipe_class_name = details_dict["type"]
             normalized_details = details_dict.copy()
+            log.dev(f"New format, pipe_class_name: {pipe_class_name}")
+            log.dev(f"Normalized details: {normalized_details}")
         else:
             try:
                 pipe_class_name, legacy_definition = next(iter(details_dict.items()))
                 normalized_details = {"definition": legacy_definition}
+                log.dev(f"Legacy format, pipe_class_name: {pipe_class_name}")
+                log.dev(f"Normalized details: {normalized_details}")
             except StopIteration as empty_err:
                 raise PipeFactoryError("Pipe details are empty; cannot determine pipe type") from empty_err
 
         factory_class_name = f"{pipe_class_name}Factory"
+        log.dev(f"Factory class name: {factory_class_name}")
 
         # Resolve factory to locate its module (where the Blueprint class is defined)
         try:
@@ -486,6 +492,7 @@ Old syntax will be removed in v0.3.0.
 
         factory_module = importlib.import_module(pipe_factory.__module__)
         blueprint_class_name = f"{pipe_class_name}Blueprint"
+        log.dev(f"Blueprint class name: {blueprint_class_name}")
 
         try:
             blueprint_cls: Type[PipeBlueprint] = getattr(factory_module, blueprint_class_name)
@@ -495,4 +502,5 @@ Old syntax will be removed in v0.3.0.
         details_with_domain = normalized_details.copy()
         details_with_domain["domain"] = domain_code
 
+        log.dev(f"Making Pipe blueprint for class {blueprint_class_name} from details: {details_with_domain}")
         return blueprint_cls.model_validate(details_with_domain)
