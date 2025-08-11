@@ -49,3 +49,10 @@ class PipelineBlueprint(StructuredContent):
 
     # Pipes section - pipe_name -> blueprint dict
     pipe: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+
+    @property
+    def desc(self) -> str:
+        if self.definition:
+            return f"{self.domain} • {self.definition[:100]}"
+        else:
+            return self.domain
