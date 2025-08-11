@@ -11,7 +11,7 @@ from pipelex.pipe_controllers.pipe_controller import PipeController
 from pipelex.pipe_works.pipe_dry import dry_run_pipe_codes
 
 
-async def validate_blueprint(blueprint: PipelineBlueprint) -> None:
+async def validate_blueprint(blueprint: PipelineBlueprint, is_error_fixing_enabled: bool) -> None:
     # Load pipes from the blueprint
     log.dev("Loading pipes from blueprint")
     try:
@@ -30,26 +30,31 @@ async def validate_blueprint(blueprint: PipelineBlueprint) -> None:
     except StaticValidationError as static_validation_error:
         match static_validation_error.error_type:
             case StaticValidationErrorType.MISSING_INPUT_VARIABLE:
-                pipe_code = static_validation_error.pipe_code
-                if not pipe_code:
-                    raise PipelexCLIError(f"No pipe code found for static validation error: {static_validation_error}")
-                pipe = get_required_pipe(pipe_code=pipe_code)
-                if isinstance(pipe, PipeController):
-                    # log.error(f"❌ Validation failed:\n{static_validation_error}")
-                    # log.error(f"❌ Missing input variable: {static_validation_error.variable_names}")
-                    variable_names = static_validation_error.variable_names
-                    required_concept_codes = static_validation_error.required_concept_codes
-                    if not variable_names:
-                        raise PipelexCLIError(f"No variable names found for static validation error: {static_validation_error}")
-                    if not required_concept_codes:
-                        raise PipelexCLIError(f"No required concept codes found for static validation error: {static_validation_error}")
-                    log.error(f"❌ Missing: {variable_names} / concepts: {required_concept_codes}")
-                    for variable_name, concept_code in zip(variable_names, required_concept_codes):
-                        if "inputs" not in blueprint.pipe[pipe_code]:
-                            blueprint.pipe[pipe_code]["inputs"] = {}
-                        blueprint.pipe[pipe_code]["inputs"][variable_name] = concept_code
-                        log.info(f"✅ Added: {variable_name} / {concept_code}")
-                    await validate_blueprint(blueprint=blueprint)
+                if is_error_fixing_enabled:
+                    pipe_code = static_validation_error.pipe_code
+                    if not pipe_code:
+                        raise PipelexCLIError(f"No pipe code found for static validation error: {static_validation_error}")
+                    pipe = get_required_pipe(pipe_code=pipe_code)
+                    if isinstance(pipe, PipeController):
+                        # log.error(f"❌ Validation failed:\n{static_validation_error}")
+                        # log.error(f"❌ Missing input variable: {static_validation_error.variable_names}")
+                        variable_names = static_validation_error.variable_names
+                        required_concept_codes = static_validation_error.required_concept_codes
+                        if not variable_names:
+                            raise PipelexCLIError(f"No variable names found for static validation error: {static_validation_error}")
+                        if not required_concept_codes:
+                            raise PipelexCLIError(f"No required concept codes found for static validation error: {static_validation_error}")
+                        log.error(f"❌ Missing: {variable_names} / concepts: {required_concept_codes}")
+                        for variable_name, concept_code in zip(variable_names, required_concept_codes):
+                            if "inputs" not in blueprint.pipe[pipe_code]:
+                                blueprint.pipe[pipe_code]["inputs"] = {}
+                            blueprint.pipe[pipe_code]["inputs"][variable_name] = concept_code
+                            log.info(f"✅ Added: {variable_name} / {concept_code}")
+                        await validate_blueprint(blueprint=blueprint, is_error_fixing_enabled=True)
+                    else:
+                        raise PipelexCLIError(f"Unexpected validation error:\n{static_validation_error}") from static_validation_error
+                else:
+                    raise static_validation_error
             case _:
                 raise static_validation_error
     log.info("✅ Validation passed")

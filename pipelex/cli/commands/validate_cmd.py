@@ -55,7 +55,7 @@ def do_dry_run_pipe(pipe_code: str, relative_config_folder_path: str = "./pipele
         raise typer.Exit(1)
 
 
-async def do_validate_blueprint_toml_file(blueprint_path: str) -> None:
+async def do_validate_blueprint_toml_file(blueprint_path: str, is_error_fixing_enabled: bool) -> None:
     """Validate an already generated pipeline blueprint from a TOML file.
 
     Args:
@@ -78,7 +78,7 @@ async def do_validate_blueprint_toml_file(blueprint_path: str) -> None:
 
     log.info(f"Blueprint loaded successfully: domain='{blueprint.domain}'")
 
-    await validate_blueprint(blueprint=blueprint)
+    await validate_blueprint(blueprint=blueprint, is_error_fixing_enabled=is_error_fixing_enabled)
 
 
 # Typer group for validation commands
@@ -110,6 +110,7 @@ def validate_blueprint_cmd(
     relative_config_folder_path: Annotated[
         str, typer.Option("--config-folder-path", "-c", help="Relative path to the config folder path")
     ] = "./pipelex_libraries",
+    is_error_fixing_enabled: Annotated[bool, typer.Option("--fix/--no-fix", "-f/-F", help="Enable or disable error fixing during validation")] = True,
 ) -> None:
     """Validate an already generated pipeline blueprint TOML file.
 
@@ -125,5 +126,10 @@ def validate_blueprint_cmd(
     Pipelex.make(relative_config_folder_path=relative_config_folder_path, from_file=False)
 
     # Run validation
-    asyncio.run(do_validate_blueprint_toml_file(blueprint_path=blueprint_path))
+    asyncio.run(
+        do_validate_blueprint_toml_file(
+            blueprint_path=blueprint_path,
+            is_error_fixing_enabled=is_error_fixing_enabled,
+        )
+    )
     log.info("Blueprint validation completed successfully.")
