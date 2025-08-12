@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any, Dict, List, Optional
 
 import toml
@@ -53,7 +55,7 @@ def validate_toml_file(path: str) -> None:
         _validate_toml_content(content, path)
 
 
-def _clean_trailing_whitespace(content: str) -> str:
+def clean_trailing_whitespace(content: str) -> str:
     """Clean trailing whitespace from TOML content.
 
     This function:
@@ -98,7 +100,7 @@ def load_toml_from_path(path: str) -> Dict[str, Any]:
         with open(path, "r", encoding="utf-8") as file:
             content = file.read()
 
-        cleaned_content = _clean_trailing_whitespace(content)
+        cleaned_content = clean_trailing_whitespace(content)
 
         # If content changed, write it back
         if content != cleaned_content:
@@ -120,29 +122,3 @@ def failable_load_toml_from_path(path: str) -> Optional[Dict[str, Any]]:
     except toml.TomlDecodeError as exc:
         print(f"Failed to parse TOML file '{path}': {exc}")
         return None
-
-
-def save_toml_to_path(data: Dict[str, Any], path: str) -> None:
-    """Save dictionary as TOML to file path.
-
-    Args:
-        data: Dictionary to save as TOML
-        path: Path where to save the TOML file
-    """
-    with open(path, "w", encoding="utf-8") as file:
-        toml_content = toml.dumps(data)
-        cleaned_content = _clean_trailing_whitespace(toml_content)
-        file.write(cleaned_content)
-
-
-def dict_to_toml_string(data: Dict[str, Any]) -> str:
-    """Convert dictionary to TOML string format.
-
-    Args:
-        data: Dictionary to convert to TOML
-
-    Returns:
-        TOML formatted string
-    """
-    toml_content = toml.dumps(data)
-    return _clean_trailing_whitespace(toml_content)

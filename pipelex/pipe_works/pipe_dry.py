@@ -44,6 +44,15 @@ async def dry_run_single_pipe(pipe_code: str) -> str:
         return f"FAILED: {str(exc)}"
 
 
+async def dry_run_pipe_codes(pipe_codes: List[str]) -> Dict[str, str]:
+    """
+    Dry run a list of pipe codes.
+    """
+    pipe_provider = get_pipe_provider()
+    pipes = [pipe_provider.get_required_pipe(pipe_code=pipe_code) for pipe_code in pipe_codes]
+    return await dry_run_pipes(pipes=pipes)
+
+
 async def dry_run_pipes(pipes: List[PipeAbstract]) -> Dict[str, str]:
     """
     Dry run all pipes in the library using ThreadPoolExecutor for true parallelism.

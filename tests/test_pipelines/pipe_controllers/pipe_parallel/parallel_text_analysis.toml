@@ -4,7 +4,8 @@ definition = "Test pipes for PipeParallel text analysis"
 [pipe]
 
 [pipe.analyze_sentiment]
-PipeLLM = "Analyze sentiment of text"
+type = "PipeLLM"
+definition = "Analyze sentiment of text"
 inputs = { input_text = "Text" }
 output = "Text"
 prompt_template = """Analyze the sentiment of the following text and return only one word: positive, negative, or neutral.
@@ -14,7 +15,8 @@ prompt_template = """Analyze the sentiment of the following text and return only
 Sentiment:"""
 
 [pipe.count_words]
-PipeLLM = "Count words in text"
+type = "PipeLLM"
+definition = "Count words in text"
 inputs = { input_text = "Text" }
 output = "Text"
 prompt_template = """Count the number of words in the following text and return only the number:
@@ -24,7 +26,8 @@ prompt_template = """Count the number of words in the following text and return 
 Word count:"""
 
 [pipe.extract_keywords]
-PipeLLM = "Extract keywords from text"
+type = "PipeLLM"
+definition = "Extract keywords from text"
 inputs = { input_text = "Text" }
 output = "Text"
 prompt_template = """Extract the top 3 keywords from the following text. Return them as a comma-separated list:

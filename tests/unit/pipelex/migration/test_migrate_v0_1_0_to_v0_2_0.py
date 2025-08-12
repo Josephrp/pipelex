@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from pipelex.tools.migrate.migrate_v0_1_0_to_v0_2_0 import MigrationResult, TomlMigrator, migrate_concept_syntax
+from pipelex.migration.migrate_v0_1_0_to_v0_2_0 import MigrationResult, TomlMigrator, migrate_concept_syntax
 
 
 class TestTomlMigrator:

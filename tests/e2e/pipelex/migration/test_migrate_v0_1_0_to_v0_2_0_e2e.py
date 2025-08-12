@@ -5,7 +5,7 @@ from typing import Any, List, Tuple
 
 import pytest
 
-from pipelex.tools.migrate.migrate_v0_1_0_to_v0_2_0 import migrate_concept_syntax
+from pipelex.migration.migrate_v0_1_0_to_v0_2_0 import migrate_concept_syntax
 
 
 class TestMigrationE2E:
@@ -336,7 +336,7 @@ Concept = "Test concept"
         import shutil
 
         # Copy the test data file to our temp directory
-        test_data_path = Path(__file__).parent.parent.parent.parent.parent / "data" / "test_migrate_v0_1_0_to_v0_2_0.toml"
+        test_data_path = Path(__file__).parent.parent.parent.parent / "data" / "test_migrate_v0_1_0_to_v0_2_0.toml"
         test_file = tmp_path / "test_migrate.toml"
         shutil.copy2(test_data_path, test_file)
 

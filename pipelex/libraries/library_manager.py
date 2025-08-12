@@ -1,3 +1,4 @@
+import importlib
 import os
 from pathlib import Path
 from typing import Any, ClassVar, Dict, List, Optional, Type
@@ -15,7 +16,7 @@ from pipelex.core.concept_library import ConceptLibrary
 from pipelex.core.domain import Domain
 from pipelex.core.domain_library import DomainLibrary
 from pipelex.core.pipe_abstract import PipeAbstract
-from pipelex.core.pipe_blueprint import PipeSpecificFactoryProtocol
+from pipelex.core.pipe_blueprint import PipeBlueprint, PipeSpecificFactoryProtocol
 from pipelex.core.pipe_library import PipeLibrary
 from pipelex.exceptions import (
     ConceptLibraryError,
@@ -29,8 +30,8 @@ from pipelex.libraries.library_manager_abstract import LibraryManagerAbstract
 from pipelex.libraries.pipeline_blueprint import (
     ConceptBlueprintError,
     PipeBlueprintError,
+    PipelineBlueprint,
     PipelineBlueprintValidationError,
-    PipelineLibraryBlueprint,
 )
 from pipelex.tools.class_registry_utils import ClassRegistryUtils
 from pipelex.tools.misc.file_utils import find_files_in_dir
@@ -202,11 +203,11 @@ class LibraryManager(LibraryManagerAbstract):
             nb_pipes_loaded = len(self.pipe_library.root) - nb_pipes_before
             log.verbose(f"Loaded {nb_pipes_loaded} pipes from '{toml_path.name}'")
 
-    def _load_blueprint_from_file(self, toml_path: Path) -> PipelineLibraryBlueprint:
+    def _load_blueprint_from_file(self, toml_path: Path) -> PipelineBlueprint:
         """Load and validate a pipeline blueprint from a TOML file."""
         try:
             toml_data = load_toml_from_path(path=str(toml_path))
-            blueprint = PipelineLibraryBlueprint.model_validate(toml_data)
+            blueprint = PipelineBlueprint.model_validate(toml_data)
             return blueprint
         except ValidationError as exc:
             error_msg = format_pydantic_validation_error(exc)
@@ -217,7 +218,7 @@ class LibraryManager(LibraryManagerAbstract):
         except Exception as exc:
             raise LibraryError(f"Failed to load TOML file '{toml_path}': {exc}") from exc
 
-    def _load_concepts_from_blueprint(self, blueprint: PipelineLibraryBlueprint, file_path: str):
+    def _load_concepts_from_blueprint(self, blueprint: PipelineBlueprint, file_path: str):
         """Load concepts from a validated blueprint."""
         for concept_name, concept_data in blueprint.concept.items():
             try:
@@ -245,7 +246,7 @@ class LibraryManager(LibraryManagerAbstract):
                     error_msg=error_msg,
                 ) from exc
 
-    def _load_pipes_from_blueprint(self, blueprint: PipelineLibraryBlueprint, file_path: str):
+    def _load_pipes_from_blueprint(self, blueprint: PipelineBlueprint, file_path: str):
         """Load pipes from a validated blueprint."""
         for pipe_name, pipe_data in blueprint.pipe.items():
             try:
@@ -378,3 +379,114 @@ Old syntax will be removed in v0.3.0.
             details_dict=details_dict,
         )
         return pipe_from_blueprint
+
+    @classmethod
+    def make_pipe_from_details_dict(
+        cls,
+        domain_code: str,
+        pipe_code: str,
+        details_dict: Dict[str, Any],
+    ) -> PipeAbstract:
+        # Delegate to the new make_pipe_from_blueprint method
+        return cls.make_pipe_from_blueprint(
+            domain_code=domain_code,
+            pipe_code=pipe_code,
+            details_dict=details_dict,
+        )
+
+    @classmethod
+    def load_pipe_from_blueprint(
+        cls,
+        pipe_code: str,
+        pipe_blueprint: PipeBlueprint,
+    ) -> PipeAbstract:
+        """Create a Pipe from a concrete PipeBlueprint instance.
+
+        This resolves the corresponding factory by converting the blueprint class name
+        (e.g. "PipeLLMBlueprint") to its factory name ("PipeLLMFactory").
+        """
+        # The blueprint must be a concrete subclass like PipeLLMBlueprint, PipeOcrBlueprint, etc.
+        blueprint_class_name = type(pipe_blueprint).__name__
+        if blueprint_class_name == "PipeBlueprint":
+            raise PipeFactoryError("Cannot load pipe from base PipeBlueprint. Please provide a specific blueprint subclass (e.g. PipeLLMBlueprint).")
+
+        # Derive factory name: PipeLLMBlueprint -> PipeLLMFactory
+        factory_class_name = blueprint_class_name.replace("Blueprint", "Factory")
+
+        try:
+            pipe_factory: Type[PipeSpecificFactoryProtocol[Any, Any]] = KajsonManager.get_class_registry().get_required_subclass(
+                name=factory_class_name,
+                base_class=PipeSpecificFactoryProtocol,
+            )
+        except ClassRegistryNotFoundError as factory_not_found_error:
+            raise PipeFactoryError(
+                f"Pipe '{pipe_code}' couldn't be created: factory '{factory_class_name}' not found: {factory_not_found_error}"
+            ) from factory_not_found_error
+        except ClassRegistryInheritanceError as factory_inheritance_error:
+            raise PipeFactoryError(
+                f"Pipe '{pipe_code}' couldn't be created: factory '{factory_class_name}' is not a subclass of {type(PipeSpecificFactoryProtocol)}."
+            ) from factory_inheritance_error
+
+        # Domain is part of the blueprint
+        domain_code = pipe_blueprint.domain
+
+        # Let the specific factory build the concrete Pipe instance
+        pipe_from_blueprint: PipeAbstract = pipe_factory.make_pipe_from_blueprint(
+            domain_code=domain_code,
+            pipe_code=pipe_code,
+            pipe_blueprint=pipe_blueprint,  # type: ignore[arg-type]
+        )
+        return pipe_from_blueprint
+
+    @classmethod
+    def make_pipe_blueprint_from_details(
+        cls,
+        domain_code: str,
+        details_dict: Dict[str, Any],
+    ) -> PipeBlueprint:
+        """Create a concrete PipeBlueprint subclass instance from details.
+
+        This resolves the factory based on the provided details (supports both
+        new and legacy formats), locates the corresponding <PipeClassName>Blueprint
+        in the factory module, and validates the blueprint.
+        """
+        # Determine pipe class name from details
+        if "type" in details_dict and "definition" in details_dict:
+            pipe_class_name = details_dict["type"]
+            normalized_details = details_dict.copy()
+        else:
+            try:
+                pipe_class_name, legacy_definition = next(iter(details_dict.items()))
+                normalized_details = {"definition": legacy_definition}
+            except StopIteration as empty_err:
+                raise PipeFactoryError("Pipe details are empty; cannot determine pipe type") from empty_err
+
+        factory_class_name = f"{pipe_class_name}Factory"
+
+        # Resolve factory to locate its module (where the Blueprint class is defined)
+        try:
+            pipe_factory: Type[PipeSpecificFactoryProtocol[Any, Any]] = KajsonManager.get_class_registry().get_required_subclass(
+                name=factory_class_name,
+                base_class=PipeSpecificFactoryProtocol,
+            )
+        except ClassRegistryNotFoundError as factory_not_found_error:
+            raise PipeFactoryError(
+                f"Factory '{factory_class_name}' not found for pipe type '{pipe_class_name}': {factory_not_found_error}"
+            ) from factory_not_found_error
+        except ClassRegistryInheritanceError as factory_inheritance_error:
+            raise PipeFactoryError(
+                f"Factory '{factory_class_name}' is not a subclass of {type(PipeSpecificFactoryProtocol)}."
+            ) from factory_inheritance_error
+
+        factory_module = importlib.import_module(pipe_factory.__module__)
+        blueprint_class_name = f"{pipe_class_name}Blueprint"
+
+        try:
+            blueprint_cls: Type[PipeBlueprint] = getattr(factory_module, blueprint_class_name)
+        except AttributeError as exc:
+            raise PipeFactoryError(f"Cannot find blueprint class '{blueprint_class_name}' in module '{pipe_factory.__module__}'") from exc
+
+        details_with_domain = normalized_details.copy()
+        details_with_domain["domain"] = domain_code
+
+        return blueprint_cls.model_validate(details_with_domain)

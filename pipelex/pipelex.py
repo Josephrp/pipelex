@@ -239,7 +239,10 @@ class Pipelex(metaclass=MetaSingleton):
     # TODO: add kwargs to make() so that subclasses can employ specific parameters
     @classmethod
     def make(
-        cls, relative_config_folder_path: Optional[str] = None, absolute_config_folder_path: Optional[str] = None, from_file: Optional[bool] = True
+        cls,
+        relative_config_folder_path: Optional[str] = None,
+        absolute_config_folder_path: Optional[str] = None,
+        from_file: Optional[bool] = True,
     ) -> Self:
         """Create and initialize a Pipelex instance.
 

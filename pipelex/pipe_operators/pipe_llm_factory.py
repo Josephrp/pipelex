@@ -14,6 +14,7 @@ from pipelex.pipe_operators.pipe_jinja2_factory import PipeJinja2Factory
 from pipelex.pipe_operators.pipe_llm import PipeLLM, StructuringMethod
 from pipelex.pipe_operators.pipe_llm_prompt import PipeLLMPrompt
 from pipelex.tools.templating.jinja2_errors import Jinja2TemplateError
+from pipelex.tools.templating.template_provider_abstract import TemplateNotFoundError
 from pipelex.tools.typing.validation_utils import has_more_than_one_among_attributes_from_lists
 
 
@@ -100,12 +101,16 @@ class PipeLLMFactory(PipeSpecificFactoryProtocol[PipeLLMBlueprint, PipeLLM]):
                     error_msg += "The prompt template is not provided."
                 raise PipeDefinitionError(error_msg) from exc
         elif pipe_blueprint.prompt is None and pipe_blueprint.prompt_name is None:
-            # no jinja2 provided, no verbatim name, no fixed text, let's use the pipe code as jinja2 name
-            user_pipe_jinja2 = PipeJinja2(
-                code="adhoc_for_user_prompt",
-                domain=domain_code,
-                jinja2_name=pipe_code,
-            )
+            # no jinja2 provided, no verbatim name, no fixed text, let's try and use the pipe code as jinja2 name
+            try:
+                user_pipe_jinja2 = PipeJinja2(
+                    code="adhoc_for_user_prompt",
+                    domain=domain_code,
+                    jinja2_name=pipe_code,
+                )
+            except TemplateNotFoundError as exc:
+                error_msg = f"Jinja2 template not found for pipe '{pipe_code}' in domain '{domain_code}': {exc}."
+                raise PipeDefinitionError(error_msg) from exc
 
         user_images: List[str] = []
         if pipe_blueprint.inputs:

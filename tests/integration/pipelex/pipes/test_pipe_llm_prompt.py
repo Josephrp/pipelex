@@ -49,7 +49,9 @@ class TestPipeLLMPrompt:
         assert pipe_output.main_stuff is not None
         assert pipe_output.llm_prompt is not None
         assert pipe_output.llm_prompt.user_text is not None
-        assert pipe_output.llm_prompt.user_text.endswith(PipeLLMPrompt.get_output_structure_prompt(NativeConcept.TEXT.code))
+        assert pipe_output.llm_prompt.user_text.endswith(
+            PipeLLMPrompt.get_output_structure_prompt(NativeConcept.TEXT.code, is_with_preliminary_text=False)
+        )
 
     async def test_prompt_with_images(self, pipe_run_mode: PipeRunMode):
         """Test prompt with image inputs."""
@@ -109,7 +111,7 @@ class TestPipeLLMPrompt:
             assert pipe_output.main_stuff is not None
 
             # Verify output structure is appended
-            output_structure = pipe_llm_prompt.get_output_structure_prompt(concept_code)
+            output_structure = pipe_llm_prompt.get_output_structure_prompt(concept_code, is_with_preliminary_text=False)
 
             assert pipe_output.llm_prompt is not None
             assert pipe_output.llm_prompt.user_text is not None
