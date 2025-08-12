@@ -146,6 +146,7 @@ nav:
     - Tools:
       - CLI: pages/tools/cli.md
       - Logging: pages/tools/logging.md
+      - Migration: pages/tools/migration.md
     - Advanced Customizations:
       - Overview: pages/advanced-customization/index.md
       - Secrets Provider: pages/advanced-customization/secrets-provider-injection.md

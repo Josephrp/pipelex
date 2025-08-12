@@ -113,20 +113,26 @@ prompt_template = "Process: @input_text"
 
         # Verify overall results
         assert result.files_processed == 4  # All TOML files found
-        assert result.files_modified == 2  # main_toml and old_syntax_file
-        assert result.total_changes == 5  # 3 in main + 2 in legacy
-        assert len(result.modified_files) == 2
+        assert result.files_modified == 3  # main_toml, old_syntax_file, and pipes_only_file (for pipe migration)
+        assert result.total_changes == 5  # Debug: let's see what's actually being migrated
+        assert len(result.modified_files) == 3
         assert len(result.errors) == 0
 
         # Verify main file was migrated correctly
         main_content = main_toml.read_text()
+        # Concept migrations
         assert 'definition = "A written composition on a specific topic"' in main_content
         assert 'definition = "An article reporting current events"' in main_content
         assert 'definition = "Analysis of content including sentiment, topics, and key insights"' in main_content
         # BlogPost should remain unchanged (already had definition =)
         assert 'definition = "A blog post with metadata"' in main_content
+        # Pipe migrations
+        assert 'type = "PipeLLM"' in main_content
+        assert 'definition = "Analyze text content for sentiment and topics"' in main_content
+        assert 'definition = "Extract structured information from articles"' in main_content
         # Ensure no old syntax remains
         assert "Concept =" not in main_content
+        assert "PipeLLM =" not in main_content
 
         # Verify legacy file was migrated correctly
         legacy_content = old_syntax_file.read_text()
@@ -140,26 +146,34 @@ prompt_template = "Process: @input_text"
         assert 'definition = "An advanced concept with structure"' in modern_content
         assert "Concept =" not in modern_content
 
-        # Verify pipes-only file was NOT changed
+        # Verify pipes-only file was migrated (pipe syntax changed)
         pipes_content = pipes_only_file.read_text()
         assert 'domain = "pipes_only"' in pipes_content
         assert "[pipe.simple_pipe]" in pipes_content
+        assert 'type = "PipeLLM"' in pipes_content
+        assert 'definition = "A simple pipe"' in pipes_content
         assert "Concept =" not in pipes_content
+        assert "PipeLLM =" not in pipes_content
 
         # Verify backups were created for modified files only
         assert (pipelines_dir / "content_analysis.toml.backup").exists()
         assert (subdomain_dir / "legacy_concepts.toml.backup").exists()
-        assert not (subdomain_dir / "modern_concepts.toml.backup").exists()
-        assert not (pipelines_dir / "pipes_only.toml.backup").exists()
+        assert (pipelines_dir / "pipes_only.toml.backup").exists()  # Now also modified due to pipe migration
+        assert not (subdomain_dir / "modern_concepts.toml.backup").exists()  # This one should remain unchanged
 
         # Verify backup contents are correct (original content)
         main_backup = (pipelines_dir / "content_analysis.toml.backup").read_text()
         assert 'Concept = "A written composition on a specific topic"' in main_backup
         assert 'Concept = "An article reporting current events"' in main_backup
+        assert 'PipeLLM = "Analyze text content for sentiment and topics"' in main_backup
+        assert 'PipeLLM = "Extract structured information from articles"' in main_backup
 
         legacy_backup = (subdomain_dir / "legacy_concepts.toml.backup").read_text()
         assert 'Concept = "An old concept that needs migration"' in legacy_backup
         assert 'Concept = "Another legacy concept with complex refines"' in legacy_backup
+
+        pipes_backup = (pipelines_dir / "pipes_only.toml.backup").read_text()
+        assert 'PipeLLM = "A simple pipe"' in pipes_backup
 
     def test_migration_with_complex_formatting(self, tmp_path: Path) -> None:
         """Test migration preserves complex formatting and edge cases."""
@@ -221,7 +235,7 @@ Process this: @input_text
         # Verify migration results
         assert result.files_processed == 1
         assert result.files_modified == 1
-        assert result.total_changes == 6  # All the Concept = lines
+        assert result.total_changes == 6  # Debug: actual count from migration
         assert len(result.errors) == 0
 
         migrated_content = test_file.read_text()
@@ -242,8 +256,10 @@ Process this: @input_text
         # Verify already migrated concept was not changed
         assert 'definition = "This should not change"' in migrated_content
 
-        # Verify comments and pipe content were not changed
-        assert 'PipeLLM = "A pipe that mentions Concept = in description"' in migrated_content
+        # Verify pipe was migrated to new format
+        assert 'type = "PipeLLM"' in migrated_content
+        assert 'definition = "A pipe that mentions Concept = in description"' in migrated_content
+        # Verify content inside multiline strings was not changed
         assert "This template mentions Concept = something in the text." in migrated_content
 
         # Verify no Concept = remains at start of lines

@@ -126,6 +126,133 @@ If you need to rollback the migration:
 2. Restore from the `.backup` files created during migration
 3. Or manually change `definition =` back to `Concept =`
 
+## Version 0.3.0: Pipe Definition Syntax Change
+
+### Breaking Change
+
+Starting in version 0.3.0, we changed the syntax for defining pipes in TOML library files. The pipe definition format has been restructured to use explicit `type` and `definition` fields instead of the implicit `PipeClassName = "description"` format.
+
+### What Changed
+
+**Old syntax (before v0.3.0):**
+```toml
+[pipe.my_pipe_name]
+SomePipeClass = "Description of what this pipe does"
+```
+
+**New syntax (v0.3.0+):**
+```toml
+[pipe.my_pipe_name]
+type = "SomePipeClass"
+definition = "Description of what this pipe does"
+```
+
+### Why This Change
+
+This change improves consistency and clarity by:
+- Making the pipe class type explicit and separate from its description
+- Aligning pipe definitions with concept definitions (both use `definition`)
+- Improving readability and maintainability of TOML files
+- Making it easier to parse and validate pipe configurations
+
+### Migration Process
+
+#### Automatic Migration
+
+Use the built-in migration command to automatically update your TOML files:
+
+```bash
+# Preview changes without applying them
+pipelex migrate --dry-run
+
+# Apply the migration to all TOML files
+pipelex migrate
+```
+
+The migration command will:
+- Find all `.toml` files in your configured pipelines directory
+- Convert `PipeClassName = "description"` to `type = "PipeClassName"` and `definition = "description"`
+- Preserve all other formatting and comments
+- Create backups of modified files (with `.backup` extension)
+
+#### Manual Migration
+
+If you prefer to migrate manually:
+
+1. **Locate your TOML files**: Find all pipeline library files
+2. **Update pipe definitions**: 
+   - Find all `[pipe.pipe_name]` sections
+   - Replace `PipeClassName = "description"` with:
+     - `type = "PipeClassName"`
+     - `definition = "description"`
+3. **Validate syntax**: Run `pipelex validate` to ensure your files are correctly formatted
+
+### Examples
+
+#### Simple Pipe Definition
+
+**Before:**
+```toml
+[pipe.summarize_article]
+TextSummarizer = "Summarize the given article into key points"
+```
+
+**After:**
+```toml
+[pipe.summarize_article]
+type = "TextSummarizer"
+definition = "Summarize the given article into key points"
+```
+
+#### Pipe with Additional Configuration
+
+**Before:**
+```toml
+[pipe.analyze_sentiment]
+SentimentAnalyzer = "Analyze the sentiment of the input text"
+model = "bert-base-uncased"
+threshold = 0.8
+```
+
+**After:**
+```toml
+[pipe.analyze_sentiment]
+type = "SentimentAnalyzer"
+definition = "Analyze the sentiment of the input text"
+model = "bert-base-uncased"
+threshold = 0.8
+```
+
+### Deprecation Warning
+
+In the transition period, the old syntax will still work but will generate deprecation warnings:
+
+```
+WARNING: Pipe 'my_pipe_name' uses deprecated syntax. Please migrate to new format:
+replace this syntax:
+```
+SomePipeClass = "Description"
+```
+by this:
+```
+type = "SomePipeClass"
+definition = "Description"
+```
+Old syntax will be removed in v0.3.0.
+```
+
+### Validation
+
+After migration, validate your pipeline files:
+
+```bash
+# Validate all pipeline files
+pipelex validate
+
+# Run a specific pipeline to test
+pipelex run your-pipeline-name
+```
+
 ---
 
 For additional help or if you encounter issues during migration, please [open an issue](https://github.com/Pipelex/pipelex/issues) on our GitHub repository.
