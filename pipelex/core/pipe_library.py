@@ -46,6 +46,13 @@ class PipeLibrary(RootModel[PipeLibraryRoot], PipeProviderAbstract):
             raise PipeLibraryError(f"Pipe '{name}' already exists in the library")
         self.root[pipe.code] = pipe
 
+    def add_or_update_pipe(self, pipe: PipeAbstract):
+        name = pipe.code
+        pipe.inputs.set_default_domain(domain=pipe.domain)
+        if pipe.output_concept_code and "." not in pipe.output_concept_code:
+            pipe.output_concept_code = f"{pipe.domain}.{pipe.output_concept_code}"
+        self.root[name] = pipe
+
     @override
     def get_optional_pipe(self, pipe_code: str) -> Optional[PipeAbstract]:
         return self.root.get(pipe_code)

@@ -102,6 +102,7 @@ class PipeSequence(PipeController):
                     domain_code=self.domain,
                     pipe_code=self.code,
                     variable_names=[named_input_requirement.variable_name],
+                    required_concept_codes=[named_input_requirement.concept_code],
                 )
                 match reactions.get(StaticValidationErrorType.MISSING_INPUT_VARIABLE, default_reaction):
                     case StaticValidationReaction.IGNORE:

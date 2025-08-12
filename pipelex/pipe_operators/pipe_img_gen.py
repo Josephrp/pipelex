@@ -89,7 +89,10 @@ class PipeImgGen(PipeOperator):
 
     @override
     def required_variables(self) -> Set[str]:
-        return {"imgg_prompt"}
+        if self.img_gen_prompt_var_name:
+            return {self.img_gen_prompt_var_name}
+        else:
+            return {"imgg_prompt"}
 
     def _validate_inputs(self):
         concept_provider = get_concept_provider()
@@ -158,6 +161,8 @@ class PipeImgGen(PipeOperator):
                     log.error(missing_input_var_error.desc())
                 case StaticValidationReaction.RAISE:
                     raise missing_input_var_error
+        else:
+            self.img_gen_prompt_var_name = candidate_prompt_var_names[0]
 
     @override
     async def _run_operator_pipe(
