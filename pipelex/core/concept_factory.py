@@ -8,6 +8,7 @@ from pipelex.core.concept_code_factory import ConceptCodeFactory
 from pipelex.core.concept_native import NativeConcept, NativeConceptClass
 from pipelex.core.domain import SpecialDomain
 from pipelex.core.stuff_content import TextContent
+from pipelex.create.structured_output_generator import generate_structured_output_from_inline_definition
 from pipelex.exceptions import ConceptFactoryError, StructureClassError
 from pipelex.hub import get_class_registry
 
@@ -16,7 +17,7 @@ class ConceptBlueprint(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     definition: str
-    structure: Optional[str] = None
+    structure: Optional[Union[str, Dict[str, Any]]] = None
     refines: Union[str, List[str]] = Field(default_factory=list)
     domain: Optional[str] = None
 
@@ -123,12 +124,34 @@ class ConceptFactory:
     ) -> Concept:
         structure_class_name: str
         if structure := concept_blueprint.structure:
-            # structure is set explicitly
-            if not Concept.is_valid_structure_class(structure_class_name=structure):
-                raise StructureClassError(
-                    f"Structure class '{structure}' set for concept '{code}' in domain '{domain}' is not a registered subclass of StuffContent"
-                )
-            structure_class_name = structure
+            if isinstance(structure, str):
+                # structure is set explicitly as a class name reference
+                if not Concept.is_valid_structure_class(structure_class_name=structure):
+                    raise StructureClassError(
+                        f"Structure class '{structure}' set for concept '{code}' in domain '{domain}' is not a registered subclass of StuffContent"
+                    )
+                structure_class_name = structure
+            else:
+                # structure is defined inline - generate Python class dynamically
+                structure_class_name = code
+                try:
+                    # Generate Python class from inline definition
+                    python_code = generate_structured_output_from_inline_definition(
+                        class_name=code,
+                        fields_def=structure,  # type: ignore[arg-type]
+                        enums=None,  # TODO: Handle enums if needed in the future
+                    )
+
+                    # Execute the generated Python code to register the class
+                    exec_globals: Dict[str, Any] = {}
+                    exec(python_code, exec_globals)
+
+                    # Get the generated class and register it
+                    generated_class = exec_globals[code]
+                    get_class_registry().register_class(generated_class)
+
+                except Exception as exc:
+                    raise ConceptFactoryError(f"Error generating structure class for concept '{code}' in domain '{domain}': {exc}") from exc
         elif Concept.is_valid_structure_class(structure_class_name=code):
             # structure is set implicitly, by the concept's code
             structure_class_name = code
