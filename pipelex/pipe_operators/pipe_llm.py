@@ -11,20 +11,21 @@ from pipelex.cogt.llm.llm_models.llm_setting import LLMSetting, LLMSettingChoice
 from pipelex.cogt.llm.llm_prompt import LLMPrompt
 from pipelex.cogt.llm.llm_prompt_factory_abstract import LLMPromptFactoryAbstract
 from pipelex.config import StaticValidationReaction, get_config
-from pipelex.core.concept_code_factory import ConceptCodeFactory
-from pipelex.core.concept_native import NativeConcept, NativeConceptClass
-from pipelex.core.domain import Domain, SpecialDomain
-from pipelex.core.pipe_input_spec import PipeInputSpec
-from pipelex.core.pipe_output import PipeOutput
-from pipelex.core.pipe_run_params import (
+from pipelex.core.concepts.concept import Concept
+from pipelex.core.concepts.concept_code_factory import ConceptCodeFactory
+from pipelex.core.concepts.concept_native import NativeConcept, NativeConceptClass
+from pipelex.core.domains.domain import Domain, SpecialDomain
+from pipelex.core.memory.working_memory import WorkingMemory
+from pipelex.core.pipes.pipe_input_spec import PipeInputSpec
+from pipelex.core.pipes.pipe_output import PipeOutput
+from pipelex.core.pipes.pipe_run_params import (
     PipeOutputMultiplicity,
     PipeRunParamKey,
     PipeRunParams,
     output_multiplicity_to_apply,
 )
-from pipelex.core.stuff_content import ListContent, StructuredContent, StuffContent, TextContent
-from pipelex.core.stuff_factory import StuffFactory
-from pipelex.core.working_memory import WorkingMemory
+from pipelex.core.stuffs.stuff_content import ListContent, StructuredContent, StuffContent, TextContent
+from pipelex.core.stuffs.stuff_factory import StuffFactory
 from pipelex.exceptions import (
     PipeDefinitionError,
     PipeInputError,
@@ -79,7 +80,11 @@ class PipeLLM(PipeOperator):
         if self.structuring_method is not None:
             output_concept = get_required_concept(concept_code=self.output_concept_code)
             if output_concept.structure_class_name == NativeConceptClass.TEXT:
-                raise PipeDefinitionError(f"Output concept '{self.output_concept_code}' is a Text concept, so it cannot be structured")
+                concept_name = Concept.extract_concept_name_from_str(concept_str=self.output_concept_code)
+                raise PipeDefinitionError(
+                    f"Output concept '{self.output_concept_code}' is considered a Text concept, "
+                    f"so it cannot be structured. Maybe you forgot to add '{concept_name}' to the class registry?"
+                )
         return self
 
     @override
@@ -305,9 +310,13 @@ class PipeLLM(PipeOperator):
             )
         )
 
+        is_with_preliminary_text = (
+            self.structuring_method == StructuringMethod.PRELIMINARY_TEXT
+        ) or get_config().pipelex.structure_config.is_default_text_then_structure
         llm_prompt_run_params = PipeRunParams.copy_by_injecting_multiplicity(
             pipe_run_params=pipe_run_params,
             applied_output_multiplicity=applied_output_multiplicity,
+            is_with_preliminary_text=is_with_preliminary_text,
         )
         # llm_prompt_1: LLMPrompt = (
         #     await self.pipe_llm_prompt.run_pipe(
@@ -340,7 +349,8 @@ class PipeLLM(PipeOperator):
             log.debug(f"PipeLLM generating {fixed_nb_output} output(s)" if fixed_nb_output else "PipeLLM generating a list of output(s)")
 
             llm_prompt_2_factory: Optional[LLMPromptFactoryAbstract]
-            if structuring_method := self.structuring_method:
+            if self.structuring_method:
+                structuring_method = cast(StructuringMethod, self.structuring_method)
                 log.debug(f"PipeLLM pipe_code is '{self.code}' and structuring_method is '{structuring_method}'")
                 match structuring_method:
                     case StructuringMethod.DIRECT:

@@ -5,10 +5,10 @@ from typing_extensions import Self, override
 
 from pipelex import log
 from pipelex.config import StaticValidationReaction, get_config
-from pipelex.core.pipe_input_spec import PipeInputSpec
-from pipelex.core.pipe_output import PipeOutput
-from pipelex.core.pipe_run_params import PipeRunMode, PipeRunParams
-from pipelex.core.working_memory import WorkingMemory
+from pipelex.core.memory.working_memory import WorkingMemory
+from pipelex.core.pipes.pipe_input_spec import PipeInputSpec
+from pipelex.core.pipes.pipe_output import PipeOutput
+from pipelex.core.pipes.pipe_run_params import PipeRunMode, PipeRunParams
 from pipelex.exceptions import (
     PipeRunParamsError,
     StaticValidationError,
@@ -102,6 +102,7 @@ class PipeSequence(PipeController):
                     domain_code=self.domain,
                     pipe_code=self.code,
                     variable_names=[named_input_requirement.variable_name],
+                    required_concept_codes=[named_input_requirement.concept_code],
                 )
                 match reactions.get(StaticValidationErrorType.MISSING_INPUT_VARIABLE, default_reaction):
                     case StaticValidationReaction.IGNORE:
