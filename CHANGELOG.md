@@ -1,11 +1,42 @@
 # Changelog
 
-## Unreleased
+## [v0.7.0] - 2025-08-20
+
+### Refactor
+
+- Refactored the Blueprints. Introduces the `PipelexInterpreter` that interprets the Pipelex language and creates the Pipelex Blueprints (and vice versa)
+- Modified the way we declare pipes. Use the field `type = "PipeLLM"` instead of field `PipeLLM`. (Same for all pipes)
+- Refactored the `LibraryManager`.
+- Refactored CLI commands and added new ones. Modified CLI command structure:
+  - **`pipelex init`** - Initialization commands
+    - `pipelex init libraries [DIRECTORY]` - Initialize pipelex libraries (creates `pipelex_libraries` folder)
+    - `pipelex init config` - Initialize pipelex configuration (creates `pipelex.toml`)
+  - **`pipelex validate`** - Validation and dry-run commands  
+    - `pipelex validate all` - Validate all libraries and dry-run all pipes
+    - `pipelex validate pipe PIPE_CODE` - Dry run a single pipe by its code
+  - **`pipelex show`** - Show and list commands
+    - `pipelex show config` - Show the pipelex configuration
+    - `pipelex show pipes` - List all available pipes with descriptions
+    - `pipelex show pipe PIPE_CODE` - Show a single pipe definition
+  - **`pipelex migrate`** - Migration commands
+    - `pipelex migrate run` - Migrate TOML files to new syntax (with `--dry-run` and `--backups` options)
+  - **`pipelex build`** - Build artifacts like pipeline blueprints
+    - `pipelex build draft PIPELINE_NAME` - Generate a draft pipeline
+    - `pipelex build blueprint PIPELINE_NAME` - Generate a pipeline blueprint
+- Organized `concept`, `pipe`, `working_memory`, `stuff` files into folders.
+
+### Changed
+
+- Allow `aiofiles` version `>=23.2.1`
 
 ### Added
 
 - New LLM families `LLMFamily.GPT_5`, `LLMFamily.GPT_5_CHAT` and `LLMFamily.CLAUDE_4_1`
 - Added support for Claude 4.1 and GPT 5 models (inc. mini, nano, chat)
+- New Pipe that generates pipe. Pipe code: `build_blueprint`
+- New tests. Especially for the `PipelexInterpreter`.
+- Migration files and cli commands to migrate Pipelex language to new syntax.
+- Introduces `PipelexBundle`, which correspond to the python paradigm of the Pipelex TOML syntax.
 
 ## [v0.6.10] - 2025-08-02
 
