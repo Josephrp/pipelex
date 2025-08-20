@@ -28,6 +28,7 @@
 ### Changed
 
 - Allow `aiofiles` version `>=23.2.1`
+- GHA Cla assistant fixed with Github App
 
 ### Added
 
