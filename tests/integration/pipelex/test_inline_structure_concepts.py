@@ -1,10 +1,18 @@
 """Integration tests for inline structure definitions in concepts."""
 
+from typing import Dict
+
 import pytest
 
-from pipelex.core.concept_factory import ConceptBlueprint, ConceptFactory
-from pipelex.core.stuff_content import StructuredContent
-from pipelex.exceptions import ConceptFactoryError, StructureClassError
+from pipelex.core.concepts.concept_blueprint import (
+    ConceptBlueprint,
+    ConceptStructureBlueprint,
+    ConceptStructureBlueprintFieldType,
+    ConceptStructureBlueprintType,
+)
+from pipelex.core.concepts.concept_factory import ConceptFactory
+from pipelex.core.stuffs.stuff_content import StructuredContent
+from pipelex.exceptions import StructureClassError
 from pipelex.hub import get_class_registry
 
 
@@ -14,11 +22,19 @@ class TestInlineStructureConcepts:
     def test_inline_structure_definition_creation(self):
         """Test that concepts with inline structure definitions are created correctly."""
         # Define inline structure with mixed syntax
-        inline_structure = {
-            "dominant_feature": {"type": "text", "definition": "The most important feature", "required": True},
-            "visual_elements": {"type": "text", "definition": "Key visual elements", "required": True},
-            "composition": "Analysis of the image composition",
-            "color_palette": "Description of the main colors",
+        inline_structure: Dict[str, ConceptStructureBlueprintType] = {
+            "dominant_feature": ConceptStructureBlueprint(
+                type=ConceptStructureBlueprintFieldType.TEXT, definition="The most important feature", required=False
+            ),
+            "visual_elements": ConceptStructureBlueprint(
+                type=ConceptStructureBlueprintFieldType.TEXT, definition="Key visual elements", required=False
+            ),
+            "composition": ConceptStructureBlueprint(
+                type=ConceptStructureBlueprintFieldType.TEXT, definition="Analysis of the image composition", required=False
+            ),
+            "color_palette": ConceptStructureBlueprint(
+                type=ConceptStructureBlueprintFieldType.TEXT, definition="Description of the main colors", required=False
+            ),
             "mood_atmosphere": "The overall mood or atmosphere",
         }
 
@@ -82,13 +98,26 @@ class TestInlineStructureConcepts:
 
     def test_inline_structure_with_complex_types(self):
         """Test inline structure with complex field types."""
-        inline_structure = {
-            "title": {"type": "text", "definition": "Document title", "required": True},
-            "tags": {"type": "list", "item_type": "text", "definition": "List of tags"},
-            "metadata": {"type": "dict", "key_type": "text", "value_type": "text", "definition": "Metadata dictionary"},
-            "priority": {"choices": ["low", "medium", "high"], "definition": "Priority level"},
-            "page_count": {"type": "integer", "definition": "Number of pages"},
-            "is_active": {"type": "boolean", "definition": "Whether document is active"},
+        inline_structure: Dict[str, ConceptStructureBlueprintType] = {
+            "title": ConceptStructureBlueprint(type=ConceptStructureBlueprintFieldType.TEXT, definition="Document title"),
+            "tags": ConceptStructureBlueprint(
+                type=ConceptStructureBlueprintFieldType.LIST,
+                item_type=ConceptStructureBlueprintFieldType.TEXT,
+                definition="List of tags",
+                required=False,
+            ),
+            "metadata": ConceptStructureBlueprint(
+                type=ConceptStructureBlueprintFieldType.DICT,
+                key_type=ConceptStructureBlueprintFieldType.TEXT,
+                value_type=ConceptStructureBlueprintFieldType.TEXT,
+                definition="Metadata dictionary",
+                required=False,
+            ),
+            "priority": ConceptStructureBlueprint(choices=["low", "medium", "high"], definition="Priority level", required=False),
+            "page_count": ConceptStructureBlueprint(type=ConceptStructureBlueprintFieldType.INTEGER, definition="Number of pages", required=False),
+            "is_active": ConceptStructureBlueprint(
+                type=ConceptStructureBlueprintFieldType.BOOLEAN, definition="Whether document is active", required=False
+            ),
         }
 
         blueprint = ConceptBlueprint(definition="Complex document structure", structure=inline_structure)
@@ -121,38 +150,32 @@ class TestInlineStructureConcepts:
 
     def test_invalid_string_reference_raises_error(self):
         """Test that invalid string references raise appropriate errors."""
-        blueprint = ConceptBlueprint(definition="Test invalid reference", structure="NonExistentClass")
-
-        with pytest.raises(StructureClassError, match="Structure class 'NonExistentClass'"):
-            ConceptFactory.make_concept_from_blueprint(domain="test_domain", code="TestInvalid", concept_blueprint=blueprint)
-
-    def test_inline_structure_generation_error_handling(self):
-        """Test error handling when inline structure generation fails."""
-        # Create invalid structure definition that should cause generation to fail
-        invalid_structure = {
-            "invalid_field": {"type": "nonexistent_type", "definition": "This should fail"},
-        }
-
-        blueprint = ConceptBlueprint(definition="Test error handling", structure=invalid_structure)
-
-        with pytest.raises(ConceptFactoryError, match="Error generating structure class"):
-            ConceptFactory.make_concept_from_blueprint(domain="test_domain", code="TestError", concept_blueprint=blueprint)
+        with pytest.raises(
+            StructureClassError,
+            match="Structure class 'NonExistentClass' set for concept 'TestInvalidRef' in domain 'test_domain' is \
+not a registered subclass of StuffContent",
+        ):
+            _ = ConceptFactory.make_concept_from_blueprint(
+                domain="test_domain",
+                code="TestInvalidRef",
+                concept_blueprint=ConceptBlueprint(definition="Test invalid reference", structure="NonExistentClass"),
+            )
 
     def test_multiple_inline_structures_do_not_conflict(self):
         """Test that multiple inline structures with same field names don't conflict."""
         # First structure
-        structure1 = {
-            "name": {"type": "text", "definition": "Person name", "required": True},
-            "age": {"type": "integer", "definition": "Person age"},
+        structure1: Dict[str, ConceptStructureBlueprintType] = {
+            "name": ConceptStructureBlueprint(type=ConceptStructureBlueprintFieldType.TEXT, definition="Person name"),
+            "age": ConceptStructureBlueprint(type=ConceptStructureBlueprintFieldType.INTEGER, definition="Person age", required=False),
         }
 
         blueprint1 = ConceptBlueprint(definition="Person information", structure=structure1)
         concept1 = ConceptFactory.make_concept_from_blueprint(domain="test_domain", code="Person", concept_blueprint=blueprint1)
 
         # Second structure with same field names but different context
-        structure2 = {
-            "name": {"type": "text", "definition": "Product name", "required": True},
-            "age": {"type": "integer", "definition": "Product age in days"},
+        structure2: Dict[str, ConceptStructureBlueprintType] = {
+            "name": "Product name",
+            "age": ConceptStructureBlueprint(type=ConceptStructureBlueprintFieldType.INTEGER, definition="Product age in days", required=False),
         }
 
         blueprint2 = ConceptBlueprint(definition="Product information", structure=structure2)
