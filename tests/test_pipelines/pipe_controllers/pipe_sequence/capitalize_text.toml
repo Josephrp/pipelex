@@ -3,7 +3,8 @@ definition = "Test pipe for capitalizing text to uppercase"
 
 [pipe]
 [pipe.capitalize_text]
-PipeLLM = "Transform text to uppercase"
+type = "PipeLLM"
+definition = "Transform text to uppercase"
 inputs = { input_text = "Text" }
 output = "Text"
 prompt_template = """Transform the following text to uppercase:
@@ -13,7 +14,8 @@ prompt_template = """Transform the following text to uppercase:
 Return only the uppercase text, nothing else."""
 
 [pipe.add_prefix]
-PipeLLM = "Add PROCESSED prefix to text"
+type = "PipeLLM"
+definition = "Add PROCESSED prefix to text"
 inputs = { capitalized_text = "Text" }
 output = "Text"
 prompt_template = """Add the prefix "PROCESSED: " to the beginning of the following text:

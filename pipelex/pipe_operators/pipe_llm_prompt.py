@@ -7,15 +7,15 @@ from pipelex import log
 from pipelex.cogt.image.prompt_image import PromptImage
 from pipelex.cogt.image.prompt_image_factory import PromptImageFactory
 from pipelex.cogt.llm.llm_prompt import LLMPrompt
-from pipelex.core.concept import Concept
-from pipelex.core.concept_native import NativeConcept
-from pipelex.core.pipe_input_spec import PipeInputSpec
-from pipelex.core.pipe_output import PipeOutput
-from pipelex.core.pipe_run_params import PipeRunMode, PipeRunParams
-from pipelex.core.pipe_run_params_factory import PipeRunParamsFactory
-from pipelex.core.stuff_content import ImageContent, LLMPromptContent, StuffContent
-from pipelex.core.stuff_factory import StuffFactory
-from pipelex.core.working_memory import WorkingMemory
+from pipelex.core.concepts.concept import Concept
+from pipelex.core.concepts.concept_native import NativeConcept
+from pipelex.core.memory.working_memory import WorkingMemory
+from pipelex.core.pipes.pipe_input_spec import PipeInputSpec
+from pipelex.core.pipes.pipe_output import PipeOutput
+from pipelex.core.pipes.pipe_run_params import PipeRunMode, PipeRunParams
+from pipelex.core.pipes.pipe_run_params_factory import PipeRunParamsFactory
+from pipelex.core.stuffs.stuff_content import ImageContent, LLMPromptContent, StuffContent
+from pipelex.core.stuffs.stuff_factory import StuffFactory
 from pipelex.exceptions import (
     PipeDefinitionError,
     PipeInputError,
@@ -171,9 +171,15 @@ class PipeLLMPrompt(PipeOperator):
 
         # Append output structure prompt if needed
         if pipe_run_params.dynamic_output_concept_code:
-            user_text += PipeLLMPrompt.get_output_structure_prompt(output_concept=pipe_run_params.dynamic_output_concept_code)
+            user_text += PipeLLMPrompt.get_output_structure_prompt(
+                output_concept=pipe_run_params.dynamic_output_concept_code,
+                is_with_preliminary_text=pipe_run_params.is_with_preliminary_text or False,
+            )
         else:
-            user_text += PipeLLMPrompt.get_output_structure_prompt(output_concept=self.output_concept_code)
+            user_text += PipeLLMPrompt.get_output_structure_prompt(
+                output_concept=self.output_concept_code,
+                is_with_preliminary_text=pipe_run_params.is_with_preliminary_text or False,
+            )
 
         log.verbose(f"User text with {self.output_concept_code=}:\n {user_text}")
 
@@ -231,7 +237,7 @@ class PipeLLMPrompt(PipeOperator):
         )
 
     @staticmethod
-    def get_output_structure_prompt(output_concept: str) -> str:
+    def get_output_structure_prompt(output_concept: str, is_with_preliminary_text: bool) -> str:
         class_name = Concept.extract_concept_name_from_str(concept_str=output_concept)
         output_class = get_class_registry().get_class(class_name)
         if not output_class:
@@ -242,14 +248,26 @@ class PipeLLMPrompt(PipeOperator):
         if not class_structure:
             return ""
 
-        output_structure_prompt = (
-            f"\n\n---\nRequested output format: The output should be the following class: {class_name}\n"
-            f"{chr(10).join(class_structure)}\n"
-            "You do NOT need to output a formatted JSON object, another LLM will take care of that. "
-            "If you cannot find a value that is Optional, output None for that field."
-            "However, you MUST clearly output the values for each of these fields in your response.\n---\n"
-            "DO NOT create information. If the information is not present, output None."
-        )
+        class_structure_str = "\n".join(class_structure)
+
+        # TODO: use proper prompt templating for this
+        if is_with_preliminary_text:
+            output_structure_prompt = (
+                f"\n\n---\nRequested output format: The requested output will be used to define the following class: {class_name}\n"
+                f"{class_structure_str}\n"
+                "You do NOT need to output a formatted JSON object, another LLM will take care of that. "
+                "If you cannot find a value that is Optional, output None for that field. "
+                "However, you MUST clearly output the values for each of these fields in your response.\n---\n"
+                "DO NOT create information. If the information is not present, output None."
+            )
+        else:
+            output_structure_prompt = (
+                f"\n\n---\nRequested output format: The output must conform to the following BaseModel: {class_name}\n"
+                f"{class_structure_str}\n"
+                "If you cannot find a value that is Optional, output None for that field. "
+                "However, you MUST clearly output the values for each of these fields in your response.\n---\n"
+                "DO NOT create information. If the information is not present, output None."
+            )
         return output_structure_prompt
 
     async def _unravel_text(
