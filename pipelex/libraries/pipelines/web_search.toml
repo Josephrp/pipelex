@@ -82,9 +82,9 @@ PipeSequence = "Complete web search agent pipeline: search, parse, and generate 
 inputs = { user_query = "native.Text" }
 output = "WebSearchAgentResponse"
 steps = [
-    { pipe = "create_search_query", result = "search_query" },
+    { pipe = "create_search_query", result = "query" },
     { pipe = "perform_web_search", result = "search_output" },
-    { pipe = "parse_search_results", result = "parsed_results" },
+    { pipe = "parse_search_results", result = "search_response" },
     { pipe = "generate_agent_response", result = "final_response" }
 ]
 

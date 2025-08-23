@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
+
 from pydantic import Field
 
 from pipelex.core.stuffs.stuff_content import StructuredContent
@@ -7,6 +8,7 @@ from pipelex.core.stuffs.stuff_content import StructuredContent
 
 class WebSearchQuery(StructuredContent):
     """A web search query with configuration"""
+
     query_text: str = Field(description="The search query to perform")
     search_type: str = Field(default="search", description="Type of search: 'search' or 'news'")
     num_results: int = Field(default=3, description="Number of results to fetch (1-20)")
@@ -15,6 +17,7 @@ class WebSearchQuery(StructuredContent):
 
 class WebSearchResult(StructuredContent):
     """A single web search result"""
+
     title: str = Field(description="Title of the webpage")
     url: str = Field(description="URL of the webpage")
     domain: str = Field(description="Domain of the webpage")
@@ -25,6 +28,7 @@ class WebSearchResult(StructuredContent):
 
 class WebSearchResponse(StructuredContent):
     """Response from web search with results and analysis"""
+
     query: str = Field(description="Original search query")
     search_type: str = Field(description="Type of search performed")
     results: List[WebSearchResult] = Field(default_factory=list, description="List of search results")
@@ -35,9 +39,9 @@ class WebSearchResponse(StructuredContent):
 
 class WebSearchAgentResponse(StructuredContent):
     """Final response from the web search agent"""
+
     user_query: str = Field(description="Original user query")
     search_results_summary: str = Field(description="Summary of web search findings")
     comprehensive_answer: str = Field(description="Comprehensive answer incorporating web search results")
     sources: List[str] = Field(default_factory=list, description="List of source URLs used")
     confidence_level: str = Field(description="Confidence level in the answer: 'high', 'medium', or 'low'")
-

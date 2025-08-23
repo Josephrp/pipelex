@@ -1,26 +1,25 @@
-import os
 import asyncio
+import os
 import time
-from typing import Optional, Dict, Any, List
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import gradio as gr
 import httpx
 import trafilatura
-import gradio as gr
 from dateutil import parser as dateparser
 from limits import parse
 from limits.aio.storage import MemoryStorage
 from limits.aio.strategies import MovingWindowRateLimiter
-from analytics import record_request, last_n_days_df, last_n_days_avg_time_df
+
+from .analytics import last_n_days_avg_time_df, last_n_days_df, record_request
 
 # Configuration
 # Prefer environment variables; fall back to legacy hardcoded default if present.
 # Secondary key can be provided via SERPER_API_KEY_FALLBACK, SERPER_SECONDARY_API_KEY or SERPER_API_KEY_2
 SERPER_API_KEY = os.getenv("SERPER_API_KEY", "xxxxx")
 SERPER_API_KEY_FALLBACK = (
-    os.getenv("SERPER_API_KEY_FALLBACK", "xxxxxx")
-    or os.getenv("SERPER_SECONDARY_API_KEY")
-    or os.getenv("SERPER_API_KEY_2")
-    or ""
+    os.getenv("SERPER_API_KEY_FALLBACK", "xxxxxx") or os.getenv("SERPER_SECONDARY_API_KEY") or os.getenv("SERPER_API_KEY_2") or ""
 )
 SERPER_SEARCH_ENDPOINT = "https://google.serper.dev/search"
 SERPER_NEWS_ENDPOINT = "https://google.serper.dev/news"
@@ -28,19 +27,19 @@ SERPER_LOCATION = "France"
 SERPER_GL = "fr"  # country
 SERPER_HL = "fr"  # language
 
+
 def _build_serper_headers(api_key: str) -> Dict[str, str]:
     return {"X-API-KEY": api_key, "Content-Type": "application/json"}
 
+
 # Friendly browser-like headers for target site fetching to reduce 403s
 REQUEST_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-    ),
+    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"),
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
     "Referer": "https://www.google.com",
 }
+
 
 def _robust_extract_main_text(html: str, url: str) -> str:
     """Attempt trafilatura.extract with helpful options, fallback to naive cleanup.
@@ -52,15 +51,18 @@ def _robust_extract_main_text(html: str, url: str) -> str:
         return ""
     text: str = ""
     try:
-        text = trafilatura.extract(
-            html,
-            url=url or None,
-            include_comments=False,
-            include_formatting=False,
-            favor_recall=True,
-            include_links=False,
-            include_tables=True,
-        ) or ""
+        text = (
+            trafilatura.extract(
+                html,
+                url=url or None,
+                include_comments=False,
+                include_formatting=False,
+                favor_recall=True,
+                include_links=False,
+                include_tables=True,
+            )
+            or ""
+        )
     except Exception:
         text = ""
     if text and text.strip():
@@ -68,11 +70,13 @@ def _robust_extract_main_text(html: str, url: str) -> str:
     # Fallback: naive tag stripping
     try:
         import re
+
         text_only = re.sub(r"<[^>]+>", " ", html)
         text_only = re.sub(r"\s+", " ", text_only).strip()
         return text_only
     except Exception:
         return ""
+
 
 # Rate limiting
 storage = MemoryStorage()
@@ -150,7 +154,7 @@ async def search_web(
             keys_in_order.append(fb_key)
 
     if not keys_in_order:
-        await record_request(None, num_results)  # Record even failed requests
+        await record_request(0.0, num_results)  # Record even failed requests
         return (
             "Error: No SERPER API key configured. Provide api_key parameter or set "
             "SERPER_API_KEY. Optionally set SERPER_API_KEY_FALLBACK for automatic fallback."
@@ -174,9 +178,7 @@ async def search_web(
             return "Error: Rate limit exceeded. Please try again later (limit: 360 requests per hour)."
 
         # Select endpoint based on search type
-        endpoint = (
-            SERPER_NEWS_ENDPOINT if search_type == "news" else SERPER_SEARCH_ENDPOINT
-        )
+        endpoint = SERPER_NEWS_ENDPOINT if search_type == "news" else SERPER_SEARCH_ENDPOINT
 
         # Prepare payload with FR location/language
         payload = {
@@ -204,7 +206,7 @@ async def search_web(
                         resp = r
                         break
                     # Log fallback attempt
-                    print(f"[{datetime.now().isoformat()}] API key {idx+1} returned status {r.status_code} for query: '{query[:50]}...'")
+                    print(f"[{datetime.now().isoformat()}] API key {idx + 1} returned status {r.status_code} for query: '{query[:50]}...'")
                     # Decide whether to try next key
                     if not use_fallback or idx == len(keys_in_order) - 1:
                         resp = r
@@ -218,7 +220,7 @@ async def search_web(
                         print(f"[{datetime.now().isoformat()}] Falling back to next API key due to status {r.status_code}")
                 except Exception as ex:
                     last_error = str(ex)
-                    print(f"[{datetime.now().isoformat()}] Exception with API key {idx+1}: {ex}")
+                    print(f"[{datetime.now().isoformat()}] Exception with API key {idx + 1}: {ex}")
                     if not use_fallback or idx == len(keys_in_order) - 1:
                         resp = None
                         break
@@ -226,10 +228,7 @@ async def search_web(
         if not resp:
             duration = time.time() - start_time
             await record_request(duration, num_results)
-            return (
-                f"Error: Search request failed. "
-                f"Details: {last_error or 'unknown error'}."
-            )
+            return f"Error: Search request failed. Details: {last_error or 'unknown error'}."
 
         if resp.status_code != 200:
             duration = time.time() - start_time
@@ -279,9 +278,7 @@ async def search_web(
                 continue
 
             successful_extractions += 1
-            print(
-                f"[{datetime.now().isoformat()}] Successfully extracted content from {meta['link']}"
-            )
+            print(f"[{datetime.now().isoformat()}] Successfully extracted content from {meta['link']}")
 
             # Format the chunk based on search type
             if search_type == "news":
@@ -289,9 +286,7 @@ async def search_web(
                 try:
                     date_str = meta.get("date", "")
                     if date_str:
-                        date_iso = dateparser.parse(date_str, fuzzy=True).strftime(
-                            "%Y-%m-%d"
-                        )
+                        date_iso = dateparser.parse(date_str, fuzzy=True).strftime("%Y-%m-%d")
                     else:
                         date_iso = "Unknown"
                 except Exception:
@@ -308,12 +303,7 @@ async def search_web(
                 # Search results don't have date/source but have domain
                 domain = meta["link"].split("/")[2].replace("www.", "")
 
-                chunk = (
-                    f"## {meta['title']}\n"
-                    f"**Domain:** {domain}\n"
-                    f"**URL:** {meta['link']}\n\n"
-                    f"{body.strip()}\n"
-                )
+                chunk = f"## {meta['title']}\n**Domain:** {domain}\n**URL:** {meta['link']}\n\n{body.strip()}\n"
 
             chunks.append(chunk)
 
@@ -325,9 +315,7 @@ async def search_web(
         result = "\n---\n".join(chunks)
         summary = f"Successfully extracted content from {successful_extractions} out of {len(results)} {search_type} results for query: '{query}'\n\n---\n\n"
 
-        print(
-            f"[{datetime.now().isoformat()}] Extraction complete: {successful_extractions}/{len(results)} successful for query '{query}'"
-        )
+        print(f"[{datetime.now().isoformat()}] Extraction complete: {successful_extractions}/{len(results)} successful for query '{query}'")
 
         # Record successful request with duration
         duration = time.time() - start_time
@@ -339,6 +327,7 @@ async def search_web(
         # Record failed request with duration
         duration = time.time() - start_time
         return f"Error occurred while searching: {str(e)}. Please try again or check your query."
+
 
 async def search_web_structured(
     query: str,
@@ -430,7 +419,7 @@ async def search_web_structured(
                         resp = r
                         break
                     # Log fallback attempt
-                    print(f"[{datetime.now().isoformat()}] API key {idx+1} returned status {r.status_code} for query: '{query[:50]}...'")
+                    print(f"[{datetime.now().isoformat()}] API key {idx + 1} returned status {r.status_code} for query: '{query[:50]}...'")
                     # Decide whether to try next key
                     if not use_fallback or idx == len(keys_in_order) - 1:
                         resp = r
@@ -443,7 +432,7 @@ async def search_web_structured(
                         print(f"[{datetime.now().isoformat()}] Falling back to next API key due to status {r.status_code}")
                 except Exception as ex:
                     last_error = str(ex)
-                    print(f"[{datetime.now().isoformat()}] Exception with API key {idx+1}: {ex}")
+                    print(f"[{datetime.now().isoformat()}] Exception with API key {idx + 1}: {ex}")
                     if not use_fallback or idx == len(keys_in_order) - 1:
                         resp = None
                         break
@@ -542,6 +531,7 @@ async def search_web_structured(
                     if not cleaned or not str(cleaned).strip():
                         # Fallback: naive HTML tag removal or raw text normalization
                         import re
+
                         try:
                             text_src = response.text if isinstance(response.text, str) else ""
                             text_only = re.sub(r"<[^>]+>", " ", text_src)
@@ -555,12 +545,7 @@ async def search_web_structured(
                         successful_extractions += 1
 
                     # Build Serper-style block used by Splittonic parser
-                    serper_block = (
-                        f"## {item['title']}\n"
-                        f"**Domain:** {item['domain']}\n"
-                        f"**URL:** {item['url']}\n\n"
-                        f"{item['cleaned_text']}\n"
-                    )
+                    serper_block = f"## {item['title']}\n**Domain:** {item['domain']}\n**URL:** {item['url']}\n\n{item['cleaned_text']}\n"
                     # Primary field used downstream by chunking scripts
                     item["web_text_for_chunking"] = serper_block
                     # Alias retained for compatibility
@@ -576,10 +561,7 @@ async def search_web_structured(
         duration = time.time() - start_time
         await record_request(duration, fetch_num)
 
-        summary = (
-            f"Fetched {len(results_out)} results; successfully extracted content from "
-            f"{successful_extractions}"
-        )
+        summary = f"Fetched {len(results_out)} results; successfully extracted content from {successful_extractions}"
         return {
             "query": query,
             "search_type": search_type,
