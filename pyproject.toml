@@ -43,6 +43,11 @@ dependencies = [
     "typer>=0.16.0",
     "typing-extensions>=4.13.2",
     "yattag>=1.15.2",
+    # Web search dependencies
+    "trafilatura>=8.0.0",
+    "python-dateutil>=2.8.2",
+    "limits>=3.9.0",
+    "gradio>=4.0.0",
 ]
 
 [project.urls]
@@ -86,6 +91,8 @@ dev = [
     "types-requests>=2.32.0.2024091",
     "types-PyYAML>=6.0.12.20250326",
     "types-toml>=0.10.8.20240310",
+    # Web search type stubs
+    "types-python-dateutil>=2.8.19.20240106",
 ]
 
 [project.scripts]

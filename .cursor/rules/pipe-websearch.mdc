@@ -1,0 +1,86 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# PipeWebSearch Guide
+
+## Purpose
+
+Fetch and extract content from the web (general search or news) using `pipelex/tools/websearch/web_search.py`. Typical use: retrieve the top 3 results and ground a generation.
+
+## Basic Usage
+
+### Fetch top-3 results as text
+```toml
+[pipe.perform_web_search]
+PipeFunc = "Fetch top-3 web results"
+inputs = { query = "native.Text" }
+output = "native.Text"
+function = "web_search_pipeline.perform_web_search"
+```
+
+- Set the wrapper to call `search_web(query, search_type="search", num_results=3)`.
+- Supported `search_type`: "search" (general) or "news" (fresh articles).
+
+### Summarize with the results
+```toml
+[pipe.answer_with_search]
+PipeLLM = "Answer using top-3 web results"
+inputs = { question = "native.Text", search_output = "native.Text" }
+output = "native.Text"
+prompt_template = """
+Answer the question using the web results.
+
+Question: $question
+
+Web results:
+@search_output
+"""
+```
+
+### Sequence
+```toml
+[pipe.web_search_agent_simple]
+PipeSequence = "Search then answer"
+inputs = { user_query = "native.Text" }
+output = "native.Text"
+steps = [
+    { pipe = "perform_web_search", result = "search_output" },
+    { pipe = "answer_with_search", result = "final_answer" }
+]
+```
+
+## Structured Usage (optional)
+
+If you want typed outputs, you can use the provided structures (see `pipelex/libraries/pipelines/web_search.py`).
+
+```python
+from typing import List, Optional
+from pydantic import Field
+from pipelex.core.stuffs.stuff_content import StructuredContent
+
+class WebSearchResult(StructuredContent):
+    title: str
+    url: str
+    domain: str
+    content: str
+    date: Optional[str] = None
+    source: Optional[str] = None
+
+class WebSearchResponse(StructuredContent):
+    query: str
+    search_type: str
+    results: List[WebSearchResult] = Field(default_factory=list)
+    summary: str
+```
+
+## Environment
+
+Set the following variables to enable the web search module:
+- `SERPER_API_KEY`
+- `SERPER_API_KEY_FALLBACK` (optional)
+
+## Important tip
+
+Always run the cli `pipelex validate` when you are finished writing pipelines: This checks for errors. If there are errors, iterate.
