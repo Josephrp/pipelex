@@ -44,7 +44,7 @@ dependencies = [
     "typing-extensions>=4.13.2",
     "yattag>=1.15.2",
     # Web search dependencies
-    "trafilatura>=8.0.0",
+    "trafilatura>=2.0.0",
     "python-dateutil>=2.8.2",
     "limits>=3.9.0",
     "gradio>=4.0.0",
