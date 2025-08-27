@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.8.1] - 2025-08-27
+
+### Bugfix
+
+- Bugfix: Fixed the `PipeFunc` output concept code and structure class name in the dry run.
+
 ## [v0.8.0] - 2025-08-27
 
 ### Refactor
