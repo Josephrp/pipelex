@@ -7,13 +7,18 @@ from typing_extensions import override
 from pipelex import log
 from pipelex.cogt.llm.llm_models.llm_deck import LLMDeck
 from pipelex.config import get_config
-from pipelex.core.bundles.pipelex_bundle import PipelexBundle
-from pipelex.core.bundles.pipelex_bundle_factory import PipelexBundleFactory
+from pipelex.core.bundles.pipelex_bundle_blueprint import PipelexBundleBlueprint
+from pipelex.core.concepts.concept import Concept
+from pipelex.core.concepts.concept_blueprint import ConceptBlueprint
 from pipelex.core.concepts.concept_factory import ConceptFactory
 from pipelex.core.concepts.concept_library import ConceptLibrary
+from pipelex.core.domains.domain import Domain
+from pipelex.core.domains.domain_blueprint import DomainBlueprint
+from pipelex.core.domains.domain_factory import DomainFactory
 from pipelex.core.domains.domain_library import DomainLibrary
 from pipelex.core.interpreter import PipelexInterpreter
 from pipelex.core.pipes.pipe_abstract import PipeAbstract
+from pipelex.core.pipes.pipe_factory import PipeFactory
 from pipelex.core.pipes.pipe_library import PipeLibrary
 from pipelex.exceptions import (
     ConceptLibraryError,
@@ -108,8 +113,7 @@ class LibraryManager(LibraryManagerAbstract):
 
     @override
     def setup(self) -> None:
-        native_concepts = ConceptFactory.list_native_concepts()
-        self.concept_library.add_concepts(concepts=native_concepts)
+        self.concept_library.setup()
 
     @override
     def teardown(self) -> None:
@@ -156,20 +160,72 @@ class LibraryManager(LibraryManagerAbstract):
 
     @override
     def load_from_file(self, toml_path: Path) -> None:
+        """Load a single file - this method is kept for compatibility."""
         if not PipelexInterpreter.is_pipelex_file(toml_path):
             raise LibraryError(f"File is not a valid Pipelex TOML file: {toml_path}")
 
-        converter = PipelexInterpreter(file_path=toml_path)
-        blueprint = converter.make_pipelex_bundle_blueprint()
-        pipelex_bundle = PipelexBundleFactory.make_from_blueprint(blueprint=blueprint)
-        self.load_from_pipelex_bundle(pipelex_bundle=pipelex_bundle)
+        blueprint = PipelexInterpreter(file_path=toml_path).make_pipelex_bundle_blueprint()
+        self.load_from_blueprint(blueprint)
 
     @override
-    def load_from_pipelex_bundle(self, pipelex_bundle: PipelexBundle) -> List[PipeAbstract]:
-        self.domain_library.add_domain(domain=pipelex_bundle.domain)
-        self.concept_library.add_concepts(concepts=list(pipelex_bundle.concepts.values()))
-        self.pipe_library.add_pipes(pipes=list(pipelex_bundle.pipes.values()))
-        return list(pipelex_bundle.pipes.values())
+    def load_from_blueprint(self, blueprint: PipelexBundleBlueprint) -> List[PipeAbstract]:
+        """Load a blueprint."""
+        # Create and load domain
+        domain = self._load_domain_from_blueprint(blueprint)
+        self.domain_library.add_domain(domain=domain)
+
+        # Create and load concepts
+        concepts = self._load_concepts_from_blueprint(blueprint)
+        self.concept_library.add_concepts(concepts=concepts)
+
+        # Create and load pipes
+        pipes = self._load_pipes_from_blueprint(blueprint)
+        self.pipe_library.add_pipes(pipes=pipes)
+
+        return pipes
+
+    def _load_domain_from_blueprint(self, blueprint: PipelexBundleBlueprint) -> Domain:
+        """Create a Domain from blueprint."""
+        return DomainFactory.make_from_blueprint(
+            blueprint=DomainBlueprint(
+                code=blueprint.domain,
+                definition=blueprint.definition,
+                system_prompt=blueprint.system_prompt,
+                system_prompt_to_structure=blueprint.system_prompt_to_structure,
+                prompt_template_to_structure=blueprint.prompt_template_to_structure,
+            )
+        )
+
+    def _load_concepts_from_blueprint(self, blueprint: PipelexBundleBlueprint) -> List[Concept]:
+        """Create Concepts from blueprint."""
+        concepts: List[Concept] = []
+
+        if blueprint.concept is not None:
+            for concept_code, concept_blueprint_or_str in blueprint.concept.items():
+                concept = ConceptFactory.make_from_blueprint(
+                    domain=blueprint.domain,
+                    concept_code=concept_code,
+                    concept_codes_from_the_same_domain=list(blueprint.concept.keys()),
+                    blueprint=ConceptBlueprint(definition=concept_blueprint_or_str)
+                    if isinstance(concept_blueprint_or_str, str)
+                    else concept_blueprint_or_str,
+                )
+                concepts.append(concept)
+        return concepts
+
+    def _load_pipes_from_blueprint(self, blueprint: PipelexBundleBlueprint) -> List[PipeAbstract]:
+        """Create Pipes from blueprint."""
+        pipes: List[PipeAbstract] = []
+        if blueprint.pipe is not None:
+            for pipe_name, pipe_blueprint in blueprint.pipe.items():
+                pipe = PipeFactory.make_from_blueprint(
+                    domain=blueprint.domain,
+                    pipe_code=pipe_name,
+                    blueprint=pipe_blueprint,
+                    concept_codes_from_the_same_domain=list(blueprint.concept.keys()) if blueprint.concept else None,
+                )
+                pipes.append(pipe)
+        return pipes
 
     @override
     def load_libraries(self, library_dirs: Optional[List[Path]] = None, library_file_paths: Optional[List[Path]] = None) -> None:
@@ -191,8 +247,33 @@ class LibraryManager(LibraryManagerAbstract):
         if library_file_paths is not None:
             all_toml_paths = library_file_paths
 
+        # Parse all blueprints first
+        blueprints: List[PipelexBundleBlueprint] = []
         for toml_file_path in all_toml_paths:
-            self.load_from_file(toml_path=toml_file_path)
+            blueprint = PipelexInterpreter(file_path=toml_file_path).make_pipelex_bundle_blueprint()
+            blueprints.append(blueprint)
+
+        # Load all domains first
+        all_domains: List[Domain] = []
+        for blueprint in blueprints:
+            domain = self._load_domain_from_blueprint(blueprint)
+            all_domains.append(domain)
+        for domain in all_domains:
+            self.domain_library.add_domain(domain=domain)
+
+        # Load all concepts second
+        all_concepts: List[Concept] = []
+        for blueprint in blueprints:
+            concepts = self._load_concepts_from_blueprint(blueprint)
+            all_concepts.extend(concepts)
+        self.concept_library.add_concepts(concepts=all_concepts)
+
+        # Load all pipes third
+        all_pipes: List[PipeAbstract] = []
+        for blueprint in blueprints:
+            pipes = self._load_pipes_from_blueprint(blueprint)
+            all_pipes.extend(pipes)
+        self.pipe_library.add_pipes(pipes=all_pipes)
 
     # TODO: move to LLMDeckManager
     def load_deck(self) -> LLMDeck:

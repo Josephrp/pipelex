@@ -1,7 +1,8 @@
 """PipeOcr test cases."""
 
 from pipelex.core.bundles.pipelex_bundle_blueprint import PipelexBundleBlueprint
-from pipelex.pipe_operators.pipe_ocr_factory import PipeOcrBlueprint
+from pipelex.core.concepts.concept_native import NativeConceptEnum
+from pipelex.pipe_operators.ocr.pipe_ocr_blueprint import PipeOcrBlueprint
 
 PIPE_OCR = (
     "pipe_ocr",
@@ -20,7 +21,7 @@ output = "Page"
             "extract_text": PipeOcrBlueprint(
                 type="PipeOcr",
                 definition="Extract text from document",
-                output="Page",
+                output=NativeConceptEnum.PAGE.value,
             ),
         },
     ),

@@ -2,13 +2,18 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Type
 
 from pipelex.core.concepts.concept import Concept
+from pipelex.core.concepts.concept_native import NativeConceptEnum
 
 ConceptLibraryRoot = Dict[str, Concept]
 
 
 class ConceptProviderAbstract(ABC):
     @abstractmethod
-    def get_concept(self, concept_code: str) -> Optional[Concept]:
+    def add_new_concept(self, concept: Concept) -> None:
+        pass
+
+    @abstractmethod
+    def add_concepts(self, concepts: List[Concept]) -> None:
         pass
 
     @abstractmethod
@@ -20,23 +25,19 @@ class ConceptProviderAbstract(ABC):
         pass
 
     @abstractmethod
-    def is_concept_implicit(self, concept_code: str) -> bool:
+    def get_required_concept(self, concept_string: str) -> Concept:
         pass
 
     @abstractmethod
-    def get_required_concept(self, concept_code: str) -> Concept:
+    def is_compatible(self, tested_concept: Concept, wanted_concept: Concept, strict: bool = False) -> bool:
         pass
 
     @abstractmethod
-    def get_concepts_dict(self) -> Dict[str, Concept]:
+    def setup(self) -> None:
         pass
 
     @abstractmethod
-    def is_compatible(self, tested_concept: Concept, wanted_concept: Concept) -> bool:
-        pass
-
-    @abstractmethod
-    def is_compatible_by_concept_code(self, tested_concept_code: str, wanted_concept_code: str) -> bool:
+    def reset(self) -> None:
         pass
 
     @abstractmethod
@@ -44,17 +45,17 @@ class ConceptProviderAbstract(ABC):
         pass
 
     @abstractmethod
+    def is_image_concept(self, concept: Concept) -> bool:
+        pass
+
+    @abstractmethod
+    def search_for_concept_in_domains(self, concept_code: str, search_domains: List[str]) -> Optional[Concept]:
+        pass
+
+    @abstractmethod
     def get_class(self, concept_code: str) -> Optional[Type[Any]]:
         pass
 
     @abstractmethod
-    def is_image_concept(self, concept_code: str) -> bool:
-        pass
-
-    @abstractmethod
-    def is_concept_code_legal(self, concept_code: str) -> bool:
-        pass
-
-    @abstractmethod
-    def search_for_concept_in_domains(self, concept_name: str, search_domains: List[str]) -> Optional[Concept]:
+    def get_native_concept(self, native_concept: NativeConceptEnum) -> Concept:
         pass

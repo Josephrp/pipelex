@@ -1,6 +1,6 @@
 """Organized test data for PipelexInterpreter tests."""
 
-from typing import ClassVar, List, Tuple
+from typing import ClassVar, List, Tuple, Type, Union
 
 from pipelex.core.bundles.pipelex_bundle_blueprint import PipelexBundleBlueprint
 
@@ -39,7 +39,7 @@ class InterpreterTestCases:
         *PIPE_FUNC_TEST_CASES,
         *PIPE_IMG_GEN_TEST_CASES,
         *PIPE_JINJA2_TEST_CASES,
-        # Pipe controller tests
+        # # Pipe controller tests
         *PIPE_SEQUENCE_TEST_CASES,
         *PIPE_CONDITION_TEST_CASES,
         *PIPE_PARALLEL_TEST_CASES,
@@ -49,4 +49,4 @@ class InterpreterTestCases:
     ]
 
     # Error test cases
-    ERROR_TEST_CASES: ClassVar[List[Tuple[str, str]]] = ERROR_TEST_CASES
+    ERROR_TEST_CASES: ClassVar[List[Tuple[str, str, Union[Type[Exception], Tuple[Type[Exception], ...]]]]] = ERROR_TEST_CASES

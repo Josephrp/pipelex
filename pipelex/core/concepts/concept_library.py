@@ -3,11 +3,10 @@ from typing import Any, Dict, List, Optional, Type
 from pydantic import Field, RootModel
 from typing_extensions import override
 
-from pipelex import log
 from pipelex.core.concepts.concept import Concept
-from pipelex.core.concepts.concept_code_factory import ConceptCodeFactory
+from pipelex.core.concepts.concept_blueprint import ConceptBlueprint
 from pipelex.core.concepts.concept_factory import ConceptFactory
-from pipelex.core.concepts.concept_native import NativeConcept
+from pipelex.core.concepts.concept_native import NATIVE_CONCEPTS_DATA, NativeConceptEnum
 from pipelex.core.concepts.concept_provider_abstract import ConceptProviderAbstract
 from pipelex.core.domains.domain import SpecialDomain
 from pipelex.core.stuffs.stuff_content import ImageContent
@@ -21,34 +20,27 @@ class ConceptLibrary(RootModel[ConceptLibraryRoot], ConceptProviderAbstract):
     root: ConceptLibraryRoot = Field(default_factory=dict)
 
     def validate_with_libraries(self):
+        """Validates that the each refine concept code in the refines array of each concept in the library exists in the library"""
         for concept in self.root.values():
-            for domain_concept_code in concept.refines:
-                if "." in domain_concept_code:
-                    domain, concept_code = Concept.extract_domain_and_concept_from_str(concept_str=domain_concept_code)
+            if concept.refines and concept.refines not in self.root.keys():
+                raise ConceptLibraryError(
+                    f"Concept '{concept.code}' refines '{concept.refines}' but no concept with the code '{concept.refines}' exists"
+                )
 
-                    found_concept = self.root.get(f"{domain}.{concept_code}", None)
-                    if not found_concept:
-                        raise ConceptLibraryError(
-                            f"Concept '{concept.code}' refines '{domain_concept_code}' but no concept "
-                            f"with the code '{concept_code}' and domain '{domain}' exists"
-                        )
-                else:
-                    current_domain = concept.domain
-                    found_concept = self.root.get(f"{current_domain}.{domain_concept_code}", None)
-                    if not found_concept:
-                        raise ConceptLibraryError(
-                            f"Concept '{concept.code}' refines '{domain_concept_code}' but no concept "
-                            f"with the code '{domain_concept_code}' and domain '{current_domain}' exists"
-                        )
-                    if found_concept.domain != current_domain:
-                        raise ConceptLibraryError(
-                            f"Concept '{concept.code}' refines '{domain_concept_code}' but the concept "
-                            f"exists in domain '{found_concept.domain}' and not in the same domain '{current_domain}'"
-                        )
+    @override
+    def setup(self):
+        native_concepts = [
+            ConceptFactory.make_native_concept(native_concept_data=NATIVE_CONCEPTS_DATA[native_concept]) for native_concept in NativeConceptEnum
+        ]
+        self.add_concepts(native_concepts)
 
-                self.get_required_concept(concept_code=domain_concept_code)
-
+    @override
     def reset(self):
+        self.root = {}
+        self.setup()
+
+    @override
+    def teardown(self):
         self.root = {}
 
     @classmethod
@@ -56,134 +48,78 @@ class ConceptLibrary(RootModel[ConceptLibraryRoot], ConceptProviderAbstract):
         return cls(root={})
 
     @override
-    def is_concept_implicit(self, concept_code: str) -> bool:
-        concept_names = self._list_concept_names()
-        is_implicit = concept_code not in concept_names
-        if is_implicit:
-            log.debug(f"Concept '{concept_code}' is implicit")
-        return is_implicit
+    def get_native_concept(self, native_concept: NativeConceptEnum) -> Concept:
+        try:
+            return self.root[f"{SpecialDomain.NATIVE.value}.{native_concept.value}"]
+        except KeyError:
+            raise ConceptLibraryConceptNotFoundError(f"Native concept '{native_concept.value}' not found in the library")
+
+    def get_native_concepts(self) -> List[Concept]:
+        """Create all native concepts from the hardcoded data"""
+        return [self.get_native_concept(native_concept=native_concept) for native_concept in NativeConceptEnum]
 
     @override
     def list_concepts(self) -> List[Concept]:
         return list(self.root.values())
 
-    def _list_concept_names(self) -> List[str]:
-        return [Concept.extract_domain_and_concept_from_str(concept.code)[1] for concept in self.list_concepts()]
-
-    @override
-    def is_concept_code_legal(self, concept_code: str) -> bool:
-        """Given a `domain.concept_code` concept_str verifies that this concept does belong to this domain or not."""
-        if Concept.concept_str_contains_domain(concept_str=concept_code):
-            domain = Concept.extract_domain_from_str(concept_str=concept_code)
-            concept_code = Concept.extract_concept_name_from_str(concept_str=concept_code)
-            return f"{domain}.{concept_code}" in self.root
-        else:
-            return False
-
     @override
     def list_concepts_by_domain(self, domain: str) -> List[Concept]:
         return [concept for key, concept in self.root.items() if key.startswith(f"{domain}.")]
 
+    @override
     def add_new_concept(self, concept: Concept):
-        name = concept.code
-        if name in self.root:
-            raise ConceptLibraryError(f"Concept '{name}' already exists in the library")
-        self.root[name] = concept
+        if concept.concept_string in self.root:
+            raise ConceptLibraryError(f"Concept '{concept.concept_string}' already exists in the library")
+        self.root[concept.concept_string] = concept
 
+    @override
     def add_concepts(self, concepts: List[Concept]):
         for concept in concepts:
             self.add_new_concept(concept=concept)
 
     @override
-    def is_compatible(self, tested_concept: Concept, wanted_concept: Concept) -> bool:
-        if tested_concept.code == wanted_concept.code:
+    def is_compatible(self, tested_concept: Concept, wanted_concept: Concept, strict: bool = False) -> bool:
+        if Concept.are_concept_compatible(concept_1=tested_concept, concept_2=wanted_concept, strict=strict):
             return True
-        for inherited_concept_code in tested_concept.refines:
-            inherited_concept = self.get_required_concept(concept_code=inherited_concept_code)
-            if self.is_compatible(inherited_concept, wanted_concept):
-                return True
         return False
 
     @override
-    def is_compatible_by_concept_code(self, tested_concept_code: str, wanted_concept_code: str) -> bool:
-        if wanted_concept_code == NativeConcept.ANYTHING.code:
-            log.verbose(
-                f"Concept '{tested_concept_code}' is compatible with '{wanted_concept_code}' "
-                f"because '{wanted_concept_code}' is '{NativeConcept.ANYTHING.code}'"
-            )
-            return True
-        tested_concept = self.get_required_concept(concept_code=tested_concept_code)
-        wanted_concept = self.get_required_concept(concept_code=wanted_concept_code)
-        if tested_concept.code == wanted_concept.code:
-            log.verbose(f"Concept '{tested_concept_code}' is compatible with '{wanted_concept_code}' because they have the same code")
-            return True
-        for inherited_concept_code in tested_concept.refines:
-            if self.is_compatible_by_concept_code(inherited_concept_code, wanted_concept_code):
-                log.verbose(
-                    f"Concept '{tested_concept_code}' is compatible with '{wanted_concept_code}' "
-                    f"because '{tested_concept_code}' refines '{inherited_concept_code}' which is compatible with '{wanted_concept_code}'"
-                )
-                return True
-        return False
-
-    @override
-    def get_concept(self, concept_code: str) -> Optional[Concept]:
-        return self.root.get(concept_code, None)
-
-    @override
-    def get_required_concept(self, concept_code: str) -> Concept:
-        if Concept.is_native_concept(concept_str=concept_code):
-            if Concept.concept_str_contains_domain(concept_str=concept_code):
-                domain, concept_code = Concept.extract_domain_and_concept_from_str(concept_str=concept_code)
-                concept_code = f"{domain}.{concept_code}"
-            else:
-                concept_code = f"{SpecialDomain.NATIVE.value}.{concept_code}"
-        the_concept = self.get_concept(concept_code=concept_code)
-        if not the_concept:
-            if self.is_concept_implicit(concept_code=concept_code):
-                # The implicit concept is obviously coming with a domain (the one it is used in)
-                # TODO: replace this with a concept factory method make_implicit_concept
-                return ConceptFactory.make_concept_from_definition_str(
-                    domain_code=SpecialDomain.IMPLICIT,
-                    concept_str=Concept.extract_domain_and_concept_from_str(concept_str=concept_code)[1],
-                    definition=concept_code,
-                )
-            else:
-                raise ConceptLibraryConceptNotFoundError(f"Concept code was not found and is not implicit: '{concept_code}'")
-        return the_concept
-
-    @override
-    def get_concepts_dict(self) -> Dict[str, Concept]:
-        return self.root
-
-    @override
-    def teardown(self) -> None:
-        self.root = {}
+    def get_required_concept(self, concept_string: str) -> Concept:
+        """
+        `concept_string` can have the domain or not. If it doesn't have the domain, it is assumed to be native.
+        If it is not native and doesnt have a domain, it should raise an error
+        """
+        if Concept.is_implicit_concept(concept_string=concept_string):
+            return ConceptFactory.make_implicit_concept(concept_string=concept_string)
+        ConceptBlueprint.validate_concept_string(concept_string=concept_string)
+        concept = self.root[concept_string]
+        return concept
 
     @override
     def get_class(self, concept_code: str) -> Optional[Type[Any]]:
         return get_class_registry().get_class(concept_code)
 
     @override
-    def is_image_concept(self, concept_code: str) -> bool:
+    def is_image_concept(self, concept: Concept) -> bool:
         """
         Check if the concept is an image concept.
         It is an image concept if its structure class is a subclass of ImageContent
         or if it refines the native Image concept.
         """
-        concept = self.get_concept(concept_code=concept_code)
-        if not concept:
-            return False
         pydantic_model = self.get_class(concept_code=concept.structure_class_name)
         is_image_class = bool(pydantic_model and issubclass(pydantic_model, ImageContent))
-        refines_image = self.is_compatible_by_concept_code(tested_concept_code=concept.code, wanted_concept_code=NativeConcept.IMAGE.code)
+        refines_image = self.is_compatible(
+            tested_concept=concept, wanted_concept=self.get_native_concept(native_concept=NativeConceptEnum.IMAGE), strict=True
+        )
         return is_image_class or refines_image
 
     @override
-    def search_for_concept_in_domains(self, concept_name: str, search_domains: List[str]) -> Optional[Concept]:
+    def search_for_concept_in_domains(self, concept_code: str, search_domains: List[str]) -> Optional[Concept]:
+        ConceptBlueprint.validate_concept_code(concept_code=concept_code)
         for domain in search_domains:
-            concept_code = ConceptCodeFactory.make_concept_code(domain=domain, code=concept_name)
-            if found_concept := self.get_concept(concept_code=concept_code):
+            if found_concept := self.get_required_concept(
+                concept_string=ConceptFactory.construct_concept_string_with_domain(domain=domain, concept_code=concept_code)
+            ):
                 return found_concept
 
         return None

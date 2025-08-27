@@ -1,15 +1,14 @@
-import re
-from typing import List, Tuple
+from typing import Optional
 
 from kajson.kajson_manager import KajsonManager
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from typing_extensions import Self
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from pipelex import log
-from pipelex.core.concepts.concept_native import NativeConcept
+from pipelex.core.concepts.concept_blueprint import ConceptBlueprint
 from pipelex.core.domains.domain import SpecialDomain
+from pipelex.core.domains.domain_blueprint import DomainBlueprint
 from pipelex.core.stuffs.stuff_content import StuffContent
-from pipelex.exceptions import ConceptCodeError, ConceptDomainError, ConceptError
+from pipelex.tools.class_registry_utils import ClassRegistryUtils
 from pipelex.tools.misc.string_utils import pascal_case_to_sentence
 
 
@@ -20,107 +19,69 @@ class Concept(BaseModel):
     domain: str
     definition: str
     structure_class_name: str
-    refines: List[str] = Field(default_factory=list)
-
-    @model_validator(mode="after")
-    # TODO: Refacto, its not clean
-    def validate_code_domain(self) -> Self:
-        if not Concept.concept_str_contains_domain(self.code):
-            raise ConceptCodeError(f"Code must contain a dot (.) for concept with code '{self.code}' and domain '{self.domain}'")
-
-        domain, code = Concept.extract_domain_and_concept_from_str(concept_str=self.code)
-        if domain != self.domain:
-            raise ConceptDomainError(
-                f"Left part of code must match the domain field for concept with "
-                f"code '{self.code}' and domain '{self.domain}': {domain} != {self.domain}"
-            )
-
-        self.validate_domain_syntax(domain, self.code, self.domain)
-        self.validate_concept_code_syntax(code, self.code, self.domain)
-
-        return self
-
-    @classmethod
-    def validate_domain_syntax(cls, domain: str, code: str, domain_field: str) -> None:
-        if not re.match(r"^[a-z][a-z0-9_]*$", domain):
-            raise ConceptDomainError(
-                f"Domain must be snake_case (lowercase letters, numbers, and underscores only) "
-                f"for concept with code '{code}' and domain '{domain_field}': {domain}"
-            )
-
-    @classmethod
-    def validate_concept_code_syntax(cls, code: str, concept_code: str, domain_field: str) -> None:
-        if not re.match(r"^[A-Z][a-zA-Z0-9]*$", code):
-            raise ConceptCodeError(
-                f"Code must be PascalCase (letters and numbers only, starting with uppercase) "
-                f"for concept with code '{concept_code}' and domain '{domain_field}': {code}"
-            )
-
-    @field_validator("refines")
-    @classmethod
-    def validate_refines(cls, value: List[str]) -> List[str]:
-        validated_refines: List[str] = []
-
-        for refine_code in value:
-            # Handle NativeConcept values directly without importing ConceptCodeFactory to avoid circular import
-            if not cls.concept_str_contains_domain(refine_code):
-                # Check if it's a valid NativeConcept name
-                if refine_code in NativeConcept.names():
-                    native_concept = NativeConcept(refine_code)
-                    full_code = native_concept.code
-                    validated_refines.append(full_code)
-                    continue
-                else:
-                    raise ConceptCodeError(f"Each refine code must contain a single dot (.), got: {refine_code}")
-            else:
-                # Already has domain, validate it directly
-                full_code = refine_code
-                validated_refines.append(full_code)
-
-            # Validate the domain and concept syntax for the full code
-            domain, code = cls.extract_domain_and_concept_from_str(concept_str=full_code)
-            cls.validate_concept_code_syntax(code=code, concept_code=full_code, domain_field=domain)
-            cls.validate_domain_syntax(domain=domain, code=full_code, domain_field=domain)
-
-        return validated_refines
-
-    @classmethod
-    def extract_domain_and_concept_from_str(cls, concept_str: str) -> Tuple[str, str]:
-        if "." in concept_str:
-            domain_code, concept_code = concept_str.split(".")
-            return domain_code, concept_code
-        raise ConceptError(f"Could not extract domain and concept from '{concept_str}'")
-
-    @classmethod
-    def extract_concept_name_from_str(cls, concept_str: str) -> str:
-        _, concept = cls.extract_domain_and_concept_from_str(concept_str=concept_str)
-        return concept
-
-    @classmethod
-    def extract_domain_from_str(cls, concept_str: str) -> str:
-        domain, _ = cls.extract_domain_and_concept_from_str(concept_str=concept_str)
-        return domain
-
-    @classmethod
-    def concept_str_contains_domain(cls, concept_str: str) -> bool:
-        """Check if the concept code contains a domain and is in the form <domain>.<concept_code>"""
-        return "." in concept_str and len(concept_str.split(".")) == 2
-
-    @classmethod
-    def sentence_from_concept_code(cls, concept_code: str) -> str:
-        return pascal_case_to_sentence(name=concept_code)
+    refines: Optional[str] = None
 
     @property
-    def node_name(self) -> str:
-        return self.code
+    def concept_string(self) -> str:
+        return f"{self.domain}.{self.code}"
 
     @classmethod
-    def is_native_concept(cls, concept_str: str) -> bool:
-        if Concept.concept_str_contains_domain(concept_str=concept_str):
-            domain = Concept.extract_domain_from_str(concept_str=concept_str)
-            return domain == SpecialDomain.NATIVE.value
-        else:
-            return concept_str in NativeConcept.names()
+    def is_implicit_concept(cls, concept_string: str) -> bool:
+        ConceptBlueprint.validate_concept_string(concept_string=concept_string)
+        return concept_string.startswith(SpecialDomain.IMPLICIT.value)
+
+    @field_validator("code")
+    def validate_code(cls, code: str) -> str:
+        ConceptBlueprint.validate_concept_code(concept_code=code)
+        return code
+
+    @field_validator("domain")
+    def validate_domain(cls, domain: str) -> str:
+        DomainBlueprint.validate_domain_code(code=domain)
+        return domain
+
+    @field_validator("refines", mode="before")
+    def validate_refines(cls, refines: Optional[str]) -> Optional[str]:
+        if refines is None:
+            return None
+        ConceptBlueprint.validate_concept_string(concept_string=refines)
+        return refines
+
+    @classmethod
+    def sentence_from_concept(cls, concept: "Concept") -> str:
+        return pascal_case_to_sentence(name=concept.code)
+
+    @classmethod
+    def is_native_concept(cls, concept: "Concept") -> bool:
+        return ConceptBlueprint.is_native_concept_string_or_concept_code(concept_string_or_concept_code=concept.concept_string)
+
+    @classmethod
+    def are_concept_compatible(cls, concept_1: "Concept", concept_2: "Concept", strict: bool = False) -> bool:
+        if concept_1.concept_string == concept_2.concept_string:
+            return True
+        if concept_1.structure_class_name == concept_2.structure_class_name:
+            return True
+        if concept_1.refines is None and concept_2.refines is None:
+            concept_1_class = KajsonManager.get_class_registry().get_class(name=concept_1.structure_class_name)
+            concept_2_class = KajsonManager.get_class_registry().get_class(name=concept_2.structure_class_name)
+
+            if concept_1_class is None or concept_2_class is None:
+                return False
+
+            if strict:
+                # Check if classes are equivalent (same fields, types, descriptions)
+                return ClassRegistryUtils.are_classes_equivalent(concept_1_class, concept_2_class)
+            else:
+                # Check if concept_1 is a subclass of concept_2
+                try:
+                    if issubclass(concept_1_class, concept_2_class):
+                        return True
+                except TypeError:
+                    pass
+
+                # Check if concept_1 has a field that is of type concept_2_class
+                return ClassRegistryUtils.has_compatible_field(concept_1_class, concept_2_class)
+        return False
 
     @classmethod
     def is_valid_structure_class(cls, structure_class_name: str) -> bool:

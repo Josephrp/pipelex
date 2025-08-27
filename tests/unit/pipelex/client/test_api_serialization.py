@@ -8,10 +8,11 @@ import pytest
 from pydantic import BaseModel
 
 from pipelex.client.api_serializer import ApiSerializer
-from pipelex.core.concepts.concept_native import NativeConcept
+from pipelex.core.concepts.concept_factory import ConceptFactory
+from pipelex.core.concepts.concept_native import NATIVE_CONCEPTS_DATA, NativeConceptEnum
 from pipelex.core.memory.working_memory import WorkingMemory
 from pipelex.core.memory.working_memory_factory import WorkingMemoryFactory
-from pipelex.core.stuffs.stuff_content import NumberContent
+from pipelex.core.stuffs.stuff_content import NumberContent, TextContent
 from pipelex.core.stuffs.stuff_factory import StuffFactory
 from tests.test_pipelines.datetime import DateTimeEvent
 
@@ -59,19 +60,34 @@ class TestApiSerialization:
             created_at=datetime(2024, 1, 1, 9, 0, 0),
         )
 
-        stuff = StuffFactory.make_stuff(concept_str="event.DateTimeEvent", name="project_meeting", content=datetime_event)
+        stuff = StuffFactory.make_stuff(
+            concept=ConceptFactory.make(
+                concept_code="DateTimeEvent", domain="event", definition="event.DateTimeEvent", structure_class_name="DateTimeEvent"
+            ),
+            name="project_meeting",
+            content=datetime_event,
+        )
         return WorkingMemoryFactory.make_from_single_stuff(stuff=stuff)
 
     @pytest.fixture
     def text_content_memory(self) -> WorkingMemory:
         """Create WorkingMemory with text content."""
-        return WorkingMemoryFactory.make_from_text(text="Sample text content", concept_str=NativeConcept.TEXT.code, name="sample_text")
+        stuff = StuffFactory.make_stuff(
+            concept=ConceptFactory.make_native_concept(native_concept_data=NATIVE_CONCEPTS_DATA[NativeConceptEnum.TEXT]),
+            name="sample_text",
+            content=TextContent(text="Sample text content"),
+        )
+        return WorkingMemoryFactory.make_from_single_stuff(stuff=stuff)
 
     @pytest.fixture
     def number_content_memory(self) -> WorkingMemory:
         """Create WorkingMemory with number content."""
         number_content = NumberContent(number=3.14159)
-        stuff = StuffFactory.make_stuff(concept_str="native.Number", name="pi_value", content=number_content)
+        stuff = StuffFactory.make_stuff(
+            concept=ConceptFactory.make_native_concept(native_concept_data=NATIVE_CONCEPTS_DATA[NativeConceptEnum.NUMBER]),
+            name="pi_value",
+            content=number_content,
+        )
         return WorkingMemoryFactory.make_from_single_stuff(stuff=stuff)
 
     def test_serialize_working_memory_with_datetime(self, datetime_content_memory: WorkingMemory):
@@ -85,7 +101,7 @@ class TestApiSerialization:
         # Check the dict structure
         datetime_blueprint = compact_memory["project_meeting"]
         assert isinstance(datetime_blueprint, dict)
-        assert datetime_blueprint["concept_code"] == "event.DateTimeEvent"
+        assert datetime_blueprint["concept_code"] == "DateTimeEvent"
 
         # Check content is properly serialized
         content = datetime_blueprint["content"]
@@ -132,7 +148,7 @@ class TestApiSerialization:
         assert "sample_text" in compact_memory
 
         text_blueprint = compact_memory["sample_text"]
-        assert text_blueprint["concept_code"] == NativeConcept.TEXT.code
+        assert text_blueprint["concept_code"] == NativeConceptEnum.TEXT.value
         assert isinstance(text_blueprint["content"], str)
         assert text_blueprint["content"] == "Sample text content"
 
@@ -144,6 +160,6 @@ class TestApiSerialization:
         assert "pi_value" in compact_memory
 
         number_blueprint = compact_memory["pi_value"]
-        assert number_blueprint["concept_code"] == "native.Number"
+        assert number_blueprint["concept_code"] == NativeConceptEnum.NUMBER.value
         assert isinstance(number_blueprint["content"], dict)
         assert number_blueprint["content"]["number"] == 3.14159

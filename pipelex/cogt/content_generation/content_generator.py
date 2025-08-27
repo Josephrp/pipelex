@@ -47,7 +47,7 @@ class ContentGenerator(ContentGeneratorProtocol):
     ) -> str:
         log.verbose(f"{self.__class__.__name__} make_llm_text: {llm_prompt_for_text}")
         log.verbose(f"llm_setting_main: {llm_setting_main}")
-        llm_assignment = LLMAssignment(
+        llm_assignment = LLMAssignment.make_from_prompt(
             job_metadata=job_metadata,
             llm_setting=llm_setting_main,
             llm_prompt=llm_prompt_for_text,
@@ -67,7 +67,7 @@ class ContentGenerator(ContentGeneratorProtocol):
         llm_prompt_for_object: LLMPrompt,
     ) -> BaseModelTypeVar:
         log.verbose(f"{self.__class__.__name__} make_object_direct: {llm_prompt_for_object}")
-        llm_assignment_for_object = LLMAssignment(
+        llm_assignment_for_object = LLMAssignment.make_from_prompt(
             job_metadata=job_metadata,
             llm_setting=llm_setting_for_object,
             llm_prompt=llm_prompt_for_object,
@@ -91,7 +91,7 @@ class ContentGenerator(ContentGeneratorProtocol):
         llm_prompt_for_text: LLMPrompt,
         llm_prompt_factory_for_object: Optional[LLMPromptFactoryAbstract] = None,
     ) -> BaseModelTypeVar:
-        llm_assignment_for_text = LLMAssignment(
+        llm_assignment_for_text = LLMAssignment.make_from_prompt(
             job_metadata=job_metadata,
             llm_setting=llm_setting_main,
             llm_prompt=llm_prompt_for_text,
@@ -135,7 +135,7 @@ class ContentGenerator(ContentGeneratorProtocol):
         llm_prompt_for_object_list: LLMPrompt,
         nb_items: Optional[int] = None,
     ) -> List[BaseModelTypeVar]:
-        llm_assignment_for_object = LLMAssignment(
+        llm_assignment_for_object = LLMAssignment.make_from_prompt(
             job_metadata=job_metadata,
             llm_setting=llm_setting_for_object_list,
             llm_prompt=llm_prompt_for_object_list,
@@ -160,7 +160,7 @@ class ContentGenerator(ContentGeneratorProtocol):
         llm_prompt_factory_for_object_list: Optional[LLMPromptFactoryAbstract] = None,
         nb_items: Optional[int] = None,
     ) -> List[BaseModelTypeVar]:
-        llm_assignment_for_text = LLMAssignment(
+        llm_assignment_for_text = LLMAssignment.make_from_prompt(
             job_metadata=job_metadata,
             llm_setting=llm_setting_main,
             llm_prompt=llm_prompt_for_text,

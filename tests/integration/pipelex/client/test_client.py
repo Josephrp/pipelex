@@ -6,7 +6,10 @@ from pydantic import BaseModel
 from pipelex import pretty_print
 from pipelex.client.client import PipelexClient
 from pipelex.client.protocol import COMPACT_MEMORY_KEY, PipelineState
-from pipelex.core.memory.working_memory import WorkingMemory
+from pipelex.core.concepts.concept_factory import ConceptFactory
+from pipelex.core.concepts.concept_native import NATIVE_CONCEPTS_DATA, NativeConceptEnum
+from pipelex.core.domains.domain import SpecialDomain
+from pipelex.core.memory.working_memory_factory import WorkingMemoryFactory
 from pipelex.core.stuffs.stuff import Stuff
 from pipelex.core.stuffs.stuff_content import TextContent
 from pipelex.core.stuffs.stuff_factory import StuffFactory
@@ -30,7 +33,7 @@ class TestPipelexApiClient:
                 pipe_code="retrieve_excerpts",
                 memory=[
                     StuffFactory.make_stuff(
-                        concept_str="Text",
+                        concept=ConceptFactory.make_native_concept(native_concept_data=NATIVE_CONCEPTS_DATA[NativeConceptEnum.TEXT]),
                         name="text",
                         content=TextContent(
                             text="""
@@ -75,7 +78,9 @@ class TestPipelexApiClient:
                         ),
                     ),
                     StuffFactory.make_stuff(
-                        concept_str="answer.Question",
+                        concept=ConceptFactory.make(
+                            concept_code="Question", domain="answer", definition="answer.Question", structure_class_name="Question"
+                        ),
                         name="question",
                         content=TextContent(text="Aerodynamic features?"),
                     ),
@@ -95,11 +100,9 @@ class TestPipelexApiClient:
         """
         for example in examples:
             # Create working memory from example data
-            memory = WorkingMemory()
             question = example.memory[1]
             text = example.memory[0]
-            memory.add_new_stuff(name=question.stuff_name or question.concept_code, stuff=question)
-            memory.add_new_stuff(name=text.stuff_name or text.concept_code, stuff=text)
+            memory = WorkingMemoryFactory.make_from_multiple_stuffs(stuff_list=[question, text], main_name=text.stuff_name or text.concept.code)
 
             # Execute pipe
             client = PipelexClient()
@@ -138,7 +141,7 @@ class TestPipelexApiClient:
                 assert isinstance(item["justification"], str)
 
             # Verify text structure
-            assert working_memory["text"]["concept_code"] == "native.Text"
+            assert working_memory["text"]["concept_code"] == f"{SpecialDomain.NATIVE.value}.{NativeConceptEnum.TEXT.value}"
             assert "content" in working_memory["text"]
             assert isinstance(working_memory["text"]["content"], str)
             assert "The Dawn of Ultra-Rapid Transit" in working_memory["text"]["content"]
