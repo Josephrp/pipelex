@@ -7,12 +7,12 @@
 - Refactored the concepts: Blueprints are now more explicit, and hold only concept strings or code. Pipes hold concept instances.
 - Organized code: Created subfolders for controller and operator pipes.
 - Say goodbye to `PipeLLMPrompt`.
-- Remove the `PipeJinja2` and `PipeLLMPrompt` in the `PipeLLM`.
+- Removed the `PipeJinja2` and `PipeLLMPrompt` from the `PipeLLM`.
 
 ### Added
 
 - Added a lot of unit tests.
-- Loading the library can now be done from toml file or form `PipelexBundleBlueprint`.
+- Loading the library can now be done from toml file or from `PipelexBundleBlueprint`.
 
 ### Fixed
 
