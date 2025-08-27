@@ -1,7 +1,8 @@
 """PipeImgGen test cases."""
 
 from pipelex.core.bundles.pipelex_bundle_blueprint import PipelexBundleBlueprint
-from pipelex.pipe_operators.pipe_img_gen_factory import PipeImgGenBlueprint
+from pipelex.core.concepts.concept_native import NativeConceptEnum
+from pipelex.pipe_operators.img_gen.pipe_img_gen_blueprint import PipeImgGenBlueprint
 
 PIPE_IMG_GEN = (
     "pipe_img_gen",
@@ -21,7 +22,7 @@ img_gen_prompt = "A beautiful landscape"
             "generate_image": PipeImgGenBlueprint(
                 type="PipeImgGen",
                 definition="Generate an image from a prompt",
-                output="Image",
+                output=NativeConceptEnum.IMAGE.value,
                 img_gen_prompt="A beautiful landscape",
             ),
         },

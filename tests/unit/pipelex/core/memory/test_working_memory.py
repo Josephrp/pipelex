@@ -2,8 +2,10 @@ from typing import ClassVar, List, Tuple
 
 import pytest
 
-from pipelex.core.concepts.concept_native import NativeConcept
-from pipelex.core.memory.working_memory import WorkingMemory
+from pipelex.core.concepts.concept_factory import ConceptFactory
+from pipelex.core.concepts.concept_native import NATIVE_CONCEPTS_DATA, NativeConceptEnum
+from pipelex.core.domains.domain import SpecialDomain
+from pipelex.core.memory.working_memory import MAIN_STUFF_NAME, WorkingMemory
 from pipelex.core.memory.working_memory_factory import WorkingMemoryFactory
 from pipelex.core.stuffs.stuff_content import HtmlContent, ImageContent, ListContent, NumberContent, TextAndImagesContent, TextContent
 from pipelex.core.stuffs.stuff_factory import StuffFactory
@@ -57,33 +59,43 @@ class TestWorkingMemory:
     @pytest.fixture
     def single_text_memory(self) -> WorkingMemory:
         """Create WorkingMemory with single text content."""
-        return WorkingMemoryFactory.make_from_text(text=TestWorkingMemoryData.SAMPLE_TEXT, concept_str=NativeConcept.TEXT.code, name="sample_text")
+        return WorkingMemoryFactory.make_from_text(
+            text=TestWorkingMemoryData.SAMPLE_TEXT, concept_string=SpecialDomain.NATIVE.value + "." + NativeConceptEnum.TEXT.value, name="sample_text"
+        )
 
     @pytest.fixture
     def single_image_memory(self) -> WorkingMemory:
         """Create WorkingMemory with single image content."""
         return WorkingMemoryFactory.make_from_image(
-            image_url=TestWorkingMemoryData.SAMPLE_IMAGE_URL, concept_str="gantt.GanttImage", name="gantt_chart_image"
+            image_url=TestWorkingMemoryData.SAMPLE_IMAGE_URL, concept_string="gantt.GanttImage", name="gantt_chart_image"
         )
 
     @pytest.fixture
     def single_pdf_memory(self) -> WorkingMemory:
         """Create WorkingMemory with single PDF content."""
-        return WorkingMemoryFactory.make_from_pdf(pdf_url=TestWorkingMemoryData.SAMPLE_PDF_URL, concept_str="PDF", name="pdf_document")
+        return WorkingMemoryFactory.make_from_pdf(
+            pdf_url=TestWorkingMemoryData.SAMPLE_PDF_URL, concept_string=NativeConceptEnum.PDF.value, name="pdf_document"
+        )
 
     @pytest.fixture
     def multiple_stuff_memory(self) -> WorkingMemory:
         """Create WorkingMemory with multiple stuff items."""
         text_stuff = StuffFactory.make_stuff(
-            concept_str="native.Text", name="question", content=TextContent(text="What are the aerodynamic features?")
+            concept=ConceptFactory.make_native_concept(native_concept_data=NATIVE_CONCEPTS_DATA[NativeConceptEnum.TEXT]),
+            name="question",
+            content=TextContent(text="What are the aerodynamic features?"),
         )
 
         document_stuff = StuffFactory.make_stuff(
-            concept_str="native.Text", name="document", content=TextContent(text=TestWorkingMemoryData.SAMPLE_TEXT)
+            concept=ConceptFactory.make_native_concept(native_concept_data=NATIVE_CONCEPTS_DATA[NativeConceptEnum.TEXT]),
+            name="document",
+            content=TextContent(text=TestWorkingMemoryData.SAMPLE_TEXT),
         )
 
         image_stuff = StuffFactory.make_stuff(
-            concept_str="native.Image", name="diagram", content=ImageContent(url=TestWorkingMemoryData.SAMPLE_IMAGE_URL)
+            concept=ConceptFactory.make_native_concept(native_concept_data=NATIVE_CONCEPTS_DATA[NativeConceptEnum.IMAGE]),
+            name="diagram",
+            content=ImageContent(url=TestWorkingMemoryData.SAMPLE_IMAGE_URL),
         )
 
         return WorkingMemoryFactory.make_from_multiple_stuffs(stuff_list=[text_stuff, document_stuff, image_stuff], main_name="document")
@@ -91,13 +103,19 @@ class TestWorkingMemory:
     @pytest.fixture
     def memory_with_aliases(self) -> WorkingMemory:
         """Create WorkingMemory with aliases."""
-        text_stuff = StuffFactory.make_stuff(concept_str="native.Text", name="primary_text", content=TextContent(text="Primary content"))
+        text_stuff = StuffFactory.make_stuff(
+            concept=ConceptFactory.make_native_concept(native_concept_data=NATIVE_CONCEPTS_DATA[NativeConceptEnum.TEXT]),
+            name="primary_text",
+            content=TextContent(text="Primary content"),
+        )
 
-        secondary_stuff = StuffFactory.make_stuff(concept_str="native.Text", name="secondary_text", content=TextContent(text="Secondary content"))
+        secondary_stuff = StuffFactory.make_stuff(
+            concept=ConceptFactory.make_native_concept(native_concept_data=NATIVE_CONCEPTS_DATA[NativeConceptEnum.TEXT]),
+            name="secondary_text",
+            content=TextContent(text="Secondary content"),
+        )
 
-        memory = WorkingMemory()
-        memory.add_new_stuff(name="primary_text", stuff=text_stuff)
-        memory.add_new_stuff(name="secondary_text", stuff=secondary_stuff)
+        memory = WorkingMemoryFactory.make_from_multiple_stuffs(stuff_list=[text_stuff, secondary_stuff], main_name="primary_text")
         memory.set_alias(alias="main_text", target="primary_text")
         memory.set_alias(alias="backup_text", target="secondary_text")
 
@@ -114,7 +132,13 @@ class TestWorkingMemory:
             ]
         )
 
-        complex_stuff = StuffFactory.make_stuff(concept_str="native.List", name="mixed_list", content=complex_content)
+        complex_stuff = StuffFactory.make_stuff(
+            concept=ConceptFactory.make(
+                concept_code="List", domain=SpecialDomain.NATIVE.value, definition="Lorem Ipsum", structure_class_name="ListContent"
+            ),
+            name="mixed_list",
+            content=complex_content,
+        )
 
         return WorkingMemoryFactory.make_from_single_stuff(stuff=complex_stuff)
 
@@ -126,7 +150,11 @@ class TestWorkingMemory:
             images=[ImageContent(url=TestWorkingMemoryData.SAMPLE_IMAGE_URL), ImageContent(url="assets/diagrams/architecture.png")],
         )
 
-        stuff = StuffFactory.make_stuff(concept_str="native.TextAndImages", name="project_overview", content=text_and_images_content)
+        stuff = StuffFactory.make_stuff(
+            concept=ConceptFactory.make_native_concept(native_concept_data=NATIVE_CONCEPTS_DATA[NativeConceptEnum.TEXT_AND_IMAGES]),
+            name="project_overview",
+            content=text_and_images_content,
+        )
 
         return WorkingMemoryFactory.make_from_single_stuff(stuff=stuff)
 
@@ -138,7 +166,13 @@ class TestWorkingMemory:
             css_class="report-content",
         )
 
-        stuff = StuffFactory.make_stuff(concept_str="native.Html", name="test_report", content=html_content)
+        stuff = StuffFactory.make_stuff(
+            concept=ConceptFactory.make(
+                concept_code="Html", domain=SpecialDomain.NATIVE.value, definition="Lorem Ipsum", structure_class_name="HtmlContent"
+            ),
+            name="test_report",
+            content=html_content,
+        )
 
         return WorkingMemoryFactory.make_from_single_stuff(stuff=stuff)
 
@@ -147,7 +181,11 @@ class TestWorkingMemory:
         """Create WorkingMemory with number content."""
         number_content = NumberContent(number=3.14159)
 
-        stuff = StuffFactory.make_stuff(concept_str="native.Number", name="pi_value", content=number_content)
+        stuff = StuffFactory.make_stuff(
+            concept=ConceptFactory.make_native_concept(native_concept_data=NATIVE_CONCEPTS_DATA[NativeConceptEnum.NUMBER]),
+            name="pi_value",
+            content=number_content,
+        )
 
         return WorkingMemoryFactory.make_from_single_stuff(stuff=stuff)
 
@@ -159,15 +197,19 @@ class TestWorkingMemory:
 
         # Check stuff retrieval
         stuff = single_text_memory.get_stuff("sample_text")
-        assert stuff.concept_code == NativeConcept.TEXT.code
+        assert stuff.concept.code == NativeConceptEnum.TEXT.value
         assert isinstance(stuff.content, TextContent)
         assert stuff.content.text == TestWorkingMemoryData.SAMPLE_TEXT
 
     def test_working_memory_aliases(self, memory_with_aliases: WorkingMemory):
         """Test WorkingMemory alias functionality."""
-        # Should have two root items and two aliases
+        # Should have two root items and two aliases other then the main stuff
+        assert MAIN_STUFF_NAME in memory_with_aliases.aliases.keys()
+        # Remove it from the aliases
+        aliases = memory_with_aliases.aliases.copy()
+        del aliases[MAIN_STUFF_NAME]
         assert len(memory_with_aliases.root) == 2
-        assert len(memory_with_aliases.aliases) == 2
+        assert len(aliases) == 2
 
         # Check aliases work
         primary_stuff = memory_with_aliases.get_stuff("primary_text")

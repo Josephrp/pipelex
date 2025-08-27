@@ -74,6 +74,7 @@ make test-with-prints         - Run tests with prints (no inference)
 make tp                       - Shorthand -> test-with-prints
 make test-inference           - Run unit tests only for inference (with prints)
 make ti                       - Shorthand -> test-inference
+make tip                      - Shorthand -> test-inference-with-prints (parallelized inference tests)
 make test-ocr                 - Run unit tests only for ocr (with prints)
 make to                       - Shorthand -> test-ocr
 make test-imgg                - Run unit tests only for imgg (with prints)
@@ -265,16 +266,27 @@ test-with-prints: env
 tp: test-with-prints
 	@echo "> done: tp = test-with-prints"
 
-test-inference: env
+test-inference-with-prints: env
 	$(call PRINT_TITLE,"Unit testing")
 	@if [ -n "$(TEST)" ]; then \
-		$(VENV_PYTEST) --pipe-run-mode live --exitfirst -m "inference and not imgg" -s -k "$(TEST)" $(if $(filter 1,$(VERBOSE)),-v,$(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,))); \
+		$(VENV_PYTEST) --pipe-run-mode live -m "inference and not imgg" -s -k "$(TEST)" $(if $(filter 1,$(VERBOSE)),-v,$(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,))); \
 	else \
-		$(VENV_PYTEST) --pipe-run-mode live --exitfirst -m "inference and not imgg" -s $(if $(filter 1,$(VERBOSE)),-v,$(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,))); \
+		$(VENV_PYTEST) --pipe-run-mode live -m "inference and not imgg" -s $(if $(filter 1,$(VERBOSE)),-v,$(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,))); \
 	fi
 
-ti: test-inference
-	@echo "> done: ti = test-inference"
+test-inference-fast: env
+	$(call PRINT_TITLE,"Unit testing")
+	@if [ -n "$(TEST)" ]; then \
+		$(VENV_PYTEST) -n auto --pipe-run-mode live -m "inference and not imgg" -s -k "$(TEST)" $(if $(filter 1,$(VERBOSE)),-v,$(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,))); \
+	else \
+		$(VENV_PYTEST) -n auto --pipe-run-mode live -m "inference and not imgg" -s $(if $(filter 1,$(VERBOSE)),-v,$(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,))); \
+	fi
+
+tip: test-inference-with-prints
+	@echo "> done: tip = test-inference-with-prints"
+
+ti: test-inference-fast
+	@echo "> done: ti-fast = test-inference-fast"
 
 ti-dry: env
 	$(call PRINT_TITLE,"Unit testing")

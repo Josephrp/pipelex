@@ -45,7 +45,7 @@ def pretty_print_all_pipes(
             pipe.definition,
             pipe.__class__.__name__,
             ", ".join([f"{name}: {concept_code}" for name, concept_code in pipe.inputs.items]),
-            pipe.output_concept_code,
+            pipe.output.code,
         )
 
     console.print("\n")
@@ -77,7 +77,7 @@ def pretty_print_all_concepts(
             concept.code,
             concept.definition,
             concept.structure_class_name,
-            ", ".join(concept.refines),
+            concept.refines,
         )
 
     console.print("\n")
@@ -99,7 +99,9 @@ class TestLibraries:
         assert len(library_manager.pipe_library.root) > 0, "No pipes were loaded"
 
         # Test individual concepts and pipes
-        assert library_manager.concept_library.get_concept(known_concept) is not None
-        pretty_print(f"Concept: {known_concept} is correctly loaded as {library_manager.concept_library.get_concept(known_concept)}")
+        assert library_manager.concept_library.get_required_concept(concept_string=known_concept) is not None
+        pretty_print(
+            f"Concept: {known_concept} is correctly loaded as {library_manager.concept_library.get_required_concept(concept_string=known_concept)}"
+        )
         assert library_manager.pipe_library.get_optional_pipe(known_pipe) is not None
         pretty_print(f"Pipe: {known_pipe} is correctly loaded as {library_manager.pipe_library.get_optional_pipe(known_pipe)}")

@@ -11,7 +11,7 @@ from pipelex import log
 from pipelex.core.concepts.concept import Concept
 from pipelex.core.stuffs.stuff import Stuff
 from pipelex.exceptions import JobHistoryError
-from pipelex.pipe_controllers.pipe_condition_details import PipeConditionDetails
+from pipelex.pipe_controllers.condition.pipe_condition_details import PipeConditionDetails
 from pipelex.pipeline.track.flow_chart import PipelineFlowChart
 from pipelex.pipeline.track.pipeline_tracker_protocol import PipelineTrackerProtocol
 from pipelex.pipeline.track.tracker_config import TrackerConfig
@@ -76,9 +76,8 @@ class PipelineTracker(PipelineTrackerProtocol):
         stuff: Stuff,
         as_item_index: Optional[int] = None,
     ) -> str:
-        concept_code = stuff.concept_code
-        concept_display = Concept.sentence_from_concept_code(concept_code=concept_code)
-        log.debug(f"Concept display: {concept_code} -> {concept_display}")
+        concept_display = Concept.sentence_from_concept(concept=stuff.concept)
+        log.debug(f"Concept display: {stuff.concept.code} -> {concept_display}")
         if stuff.is_list:
             concept_display = f"List of [{concept_display}]"
         if as_item_index is not None:

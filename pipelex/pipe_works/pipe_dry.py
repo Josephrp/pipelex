@@ -12,7 +12,7 @@ from pipelex.core.pipes.pipe_input_spec import PipeInputSpec, TypedNamedInputReq
 from pipelex.core.pipes.pipe_run_params import PipeRunMode
 from pipelex.core.pipes.pipe_run_params_factory import PipeRunParamsFactory
 from pipelex.core.stuffs.stuff_content import StuffContent, TextContent
-from pipelex.hub import get_class_registry, get_concept_provider, get_pipe_provider
+from pipelex.hub import get_class_registry, get_pipe_provider
 from pipelex.pipeline.job_metadata import JobMetadata
 
 
@@ -21,7 +21,7 @@ async def dry_run_all_pipes():
     await dry_run_pipes(pipes=all_pipes)
 
 
-async def dry_run_single_pipe(pipe_code: str) -> str:
+async def dry_run_single_pipe(pipe_code: str):
     """
     Dry run a single pipe by its code.
 
@@ -31,17 +31,11 @@ async def dry_run_single_pipe(pipe_code: str) -> str:
     Returns:
         Status string: "SUCCESS" or error message
     """
-    try:
-        # Get the pipe using the hub function
-        pipe = get_pipe_provider().get_optional_pipe(pipe_code=pipe_code)
-        if not pipe:
-            return f"FAILED: Pipe '{pipe_code}' not found"
 
-        # Run the single pipe
-        result = await dry_run_pipes(pipes=[pipe])
-        return result.get(pipe_code, f"FAILED: No result for pipe '{pipe_code}'")
-    except Exception as exc:
-        return f"FAILED: {str(exc)}"
+    # Get the pipe using the hub function
+    pipe = get_pipe_provider().get_required_pipe(pipe_code=pipe_code)
+    # Run the single pipe
+    await dry_run_pipes(pipes=[pipe])
 
 
 async def dry_run_pipe_codes(pipe_codes: List[str]) -> Dict[str, str]:
@@ -75,7 +69,8 @@ async def dry_run_pipes(pipes: List[PipeAbstract]) -> Dict[str, str]:
 
     start_time = time.time()
     results: Dict[str, str] = {}
-
+    pipe_provider = get_pipe_provider()
+    pipe_provider.validate_with_libraries()
     # Get the list of pipes that are allowed to fail from config
     allowed_to_fail_pipes = get_config().pipelex.dry_run_config.allowed_to_fail_pipes
 
@@ -84,11 +79,13 @@ async def dry_run_pipes(pipes: List[PipeAbstract]) -> Dict[str, str]:
     # Define a function that will run in a thread
     def run_pipe_in_thread(pipe: PipeAbstract) -> Tuple[str, str]:
         """Execute pipe.run_pipe in a thread and return its status."""
+        # try:
+        # This function runs in a separate thread
         try:
-            # This function runs in a separate thread
             needed_inputs = pipe.needed_inputs()
             log.debug(f"Needed inputs for {pipe.code}: {needed_inputs}")
             needed_inputs_for_factory = _convert_to_working_memory_format(needed_inputs_spec=needed_inputs)
+
             log.debug(f"Needed inputs for {pipe.code} converted to working memory format: {needed_inputs_for_factory}")
             working_memory = WorkingMemoryFactory.make_for_dry_run(needed_inputs=needed_inputs_for_factory)
 
@@ -107,19 +104,18 @@ async def dry_run_pipes(pipes: List[PipeAbstract]) -> Dict[str, str]:
                 )
                 result = (pipe.code, "SUCCESS")
                 log.debug(f"✓ Pipe {pipe.code} dry run completed successfully")
+                return result
             finally:
                 loop.close()
-
-            return result
 
         except Exception as exc:
             error_msg = f"FAILED: {str(exc)}"
 
             # Check if this pipe is allowed to fail
             if pipe.code in allowed_to_fail_pipes:
-                log.debug(f"✗ Pipe {pipe.code} dry run failed: {exc} (this is normal, allowed by config)")
+                log.debug(f"✗ Pipe '{pipe.code}' dry run failed: {exc} (this is normal, allowed by config)")
             else:
-                log.error(f"✗ Pipe {pipe.code} dry run failed: {exc}")
+                log.error(f"✗ Pipe '{pipe.code}' dry run failed: {exc}")
 
             return (pipe.code, error_msg)
 
@@ -165,13 +161,12 @@ def _convert_to_working_memory_format(needed_inputs_spec: PipeInputSpec) -> List
         List of tuples (variable_name, concept_code, structure_class)
     """
     needed_inputs_for_factory: List[TypedNamedInputRequirement] = []
-    concept_provider = get_concept_provider()
     class_registry = get_class_registry()
 
     for named_input_requirement in needed_inputs_spec.named_input_requirements:
         try:
             # Get the concept and its structure class
-            concept = concept_provider.get_required_concept(concept_code=named_input_requirement.concept_code)
+            concept = named_input_requirement.concept
             structure_class_name = concept.structure_class_name
 
             # Get the actual class from the registry
@@ -187,7 +182,7 @@ def _convert_to_working_memory_format(needed_inputs_spec: PipeInputSpec) -> List
                 # Fallback to TextContent if we can't get the proper class
                 log.warning(
                     f"Could not get structure class '{structure_class_name}' for "
-                    f"concept '{named_input_requirement.concept_code}', falling back to TextContent"
+                    f"concept '{named_input_requirement.concept.code}', falling back to TextContent"
                 )
                 text_typed_named_input_requirement = TypedNamedInputRequirement.make_from_named(
                     named=named_input_requirement,
@@ -197,7 +192,7 @@ def _convert_to_working_memory_format(needed_inputs_spec: PipeInputSpec) -> List
 
         except Exception as exc:
             # Fallback to TextContent for any errors
-            log.warning(f"Error getting structure class for concept '{named_input_requirement.concept_code}': {exc}, falling back to TextContent")
+            log.warning(f"Error getting structure class for concept '{named_input_requirement.concept.code}': {exc}, falling back to TextContent")
             text_typed_named_input_requirement = TypedNamedInputRequirement.make_from_named(
                 named=named_input_requirement,
                 structure_class=TextContent,

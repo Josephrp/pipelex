@@ -1,4 +1,4 @@
-from typing import ClassVar, List, Optional, Type
+from typing import ClassVar, Optional, Type
 
 from kajson.class_registry_abstract import ClassRegistryAbstract
 
@@ -390,20 +390,13 @@ def get_secret(secret_id: str) -> str:
     return get_secrets_provider().get_secret(secret_id=secret_id)
 
 
-def get_domains(excluded_domains: Optional[List[str]] = None) -> List[Domain]:
-    domains = get_pipelex_hub().get_required_domain_provider().get_domains()
-    if excluded_domains:
-        domains = [domain for domain in domains if domain.code not in excluded_domains]
-    return domains
+def get_required_domain(domain: str) -> Domain:
+    return get_pipelex_hub().get_required_domain_provider().get_required_domain(domain=domain)
 
 
-def get_required_domain(domain_code: str) -> Domain:
-    return get_pipelex_hub().get_required_domain_provider().get_required_domain(domain_code=domain_code)
-
-
-def get_optional_domain(domain_code: str) -> Optional[Domain]:
+def get_optional_domain(domain: str) -> Optional[Domain]:
     if domain_provider := get_pipelex_hub().get_optional_domain_provider():
-        return domain_provider.get_domain(domain_code=domain_code)
+        return domain_provider.get_domain(domain=domain)
     else:
         return None
 
@@ -428,8 +421,8 @@ def get_optional_concept_provider() -> Optional[ConceptProviderAbstract]:
     return get_pipelex_hub().get_optional_concept_provider()
 
 
-def get_required_concept(concept_code: str) -> Concept:
-    return get_pipelex_hub().get_required_concept_provider().get_required_concept(concept_code=concept_code)
+def get_required_concept(concept_string: str) -> Concept:
+    return get_pipelex_hub().get_required_concept_provider().get_required_concept(concept_string=concept_string)
 
 
 def get_pipe_router() -> PipeRouterProtocol:

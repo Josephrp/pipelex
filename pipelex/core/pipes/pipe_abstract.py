@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Set, Type
+from typing import List, Optional, Set, Type
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from pipelex.core.concepts.concept_code_factory import ConceptCodeFactory
-from pipelex.core.domains.domain import SpecialDomain
+from pipelex.core.concepts.concept import Concept
 from pipelex.core.memory.working_memory import WorkingMemory
+from pipelex.core.pipes.pipe_blueprint import PipeBlueprint
 from pipelex.core.pipes.pipe_input_spec import PipeInputSpec
 from pipelex.core.pipes.pipe_output import PipeOutput
 from pipelex.core.pipes.pipe_run_params import PipeRunParams
@@ -19,35 +19,20 @@ class PipeAbstract(ABC, BaseModel):
     code: str
     domain: str
     definition: Optional[str] = None
-    # TODO: support auto (implicit) input, it makes sense for pipe controllers
     inputs: PipeInputSpec = Field(default_factory=PipeInputSpec)
-    output_concept_code: str
+    output: Concept
 
-    @model_validator(mode="before")
-    @classmethod
-    # TODO: This is a hack to add the domain prefix to the concept code.
-    # Fix this with a more simple Concept Factory approach.
-    def add_domain_prefix(cls, data: Dict[str, Any]) -> Dict[str, Any]:
-        # Process output_concept_code - always present
-        if "output_concept_code" in data:
-            data["output_concept_code"] = ConceptCodeFactory.make_concept_code_from_str(
-                domain=data["domain"],
-                concept_str=data["output_concept_code"],
-                fallback_domain=SpecialDomain.IMPLICIT,
-            )
+    @field_validator("code", mode="before")
+    def validate_pipe_code_syntax(cls, code: str) -> str:
+        PipeBlueprint.validate_pipe_code_syntax(pipe_code=code)
+        return code
 
-        # Process inputs - always present
-        if "inputs" in data:
-            inputs = data["inputs"]
-            if isinstance(inputs, PipeInputSpec):
-                for _, input_requirement in inputs.root.items():
-                    input_requirement.concept_code = ConceptCodeFactory.make_concept_code_from_str(
-                        concept_str=input_requirement.concept_code,
-                        domain=data["domain"],
-                        fallback_domain=SpecialDomain.IMPLICIT,
-                    )
-
-        return data
+    @abstractmethod
+    def validate_output(self):
+        """
+        Validate the output for the pipe.
+        """
+        pass
 
     @property
     def class_name(self) -> str:
@@ -88,9 +73,11 @@ class PipeAbstract(ABC, BaseModel):
         """
         return set()
 
-    def concept_dependencies(self) -> Set[str]:
-        required_concepts = set([self.output_concept_code])
-        required_concepts.update(self.inputs.concepts)
+    def concept_dependencies(self) -> List[Concept]:
+        required_concepts: List[Concept] = [self.output]
+        for concept in self.inputs.concepts:
+            required_concepts.append(concept)
+        required_concepts.append(self.output)
         return required_concepts
 
     @abstractmethod

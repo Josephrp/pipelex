@@ -2,10 +2,9 @@ from operator import attrgetter
 from typing import Any, Dict, List, Optional, Set, Type
 
 from pydantic import BaseModel, Field, model_validator
-from typing_extensions import Self
+from typing_extensions import Self, override
 
 from pipelex import log, pretty_print
-from pipelex.core.concepts.concept_native import NativeConcept
 from pipelex.core.stuffs.stuff import Stuff
 from pipelex.core.stuffs.stuff_artefact import StuffArtefact
 from pipelex.core.stuffs.stuff_content import (
@@ -15,7 +14,6 @@ from pipelex.core.stuffs.stuff_content import (
     MermaidContent,
     NumberContent,
     PDFContent,
-    StuffContent,
     StuffContentType,
     TextAndImagesContent,
     TextContent,
@@ -26,7 +24,7 @@ from pipelex.exceptions import (
     WorkingMemoryStuffNotFoundError,
     WorkingMemoryTypeError,
 )
-from pipelex.tools.misc.json_utils import save_as_json_to_path
+from pipelex.tools.misc.context_provider_abstract import ContextProviderAbstract
 
 MAIN_STUFF_NAME = "main_stuff"
 BATCH_ITEM_STUFF_NAME = "BATCH_ITEM"
@@ -36,7 +34,7 @@ StuffDict = Dict[str, Stuff]
 StuffArtefactDict = Dict[str, StuffArtefact]
 
 
-class WorkingMemory(BaseModel):
+class WorkingMemory(BaseModel, ContextProviderAbstract):
     root: StuffDict = Field(default_factory=dict)
     aliases: Dict[str, str] = Field(default_factory=dict)
 
@@ -60,23 +58,10 @@ class WorkingMemory(BaseModel):
             content = stuff.content.rendered_plain()
             if len(content) > PRETTY_PRINT_MAX_LENGTH:
                 content = content[:PRETTY_PRINT_MAX_LENGTH] + "..."
-            pretty_print(content, title=f"{stuff.stuff_name} ({stuff.concept_code})")
+            pretty_print(content, title=f"{stuff.stuff_name} ({stuff.concept.code})")
 
     def make_deep_copy(self) -> Self:
         return self.model_copy(deep=True)
-
-    def generate_full_stuff_dict(self) -> StuffDict:
-        full_stuff_dict: StuffDict = self.root.copy()
-        full_stuff_dict.update({alias: self.root[target] for alias, target in self.aliases.items()})
-        return full_stuff_dict
-
-    def generate_stuff_artefact_dict(self) -> StuffArtefactDict:
-        artefact_dict: StuffArtefactDict = {}
-        for name, stuff in self.root.items():
-            artefact_dict[name] = stuff.make_artefact()
-        for alias, target in self.aliases.items():
-            artefact_dict[alias] = artefact_dict[target]
-        return artefact_dict
 
     def get_optional_stuff(self, name: str) -> Optional[Stuff]:
         if named_stuff := self.root.get(name):
@@ -105,41 +90,6 @@ class WorkingMemory(BaseModel):
             message=f"Stuff '{name}' not found in working memory, valid keys are: {self.list_keys()}",
         )
 
-    def get_stuff_or_attribute(self, name: str, wanted_type: Optional[Type[Any]] = None) -> Any:
-        if "." in name:
-            parts = name.split(".", 1)  # Split only at the first dot
-            base_name = parts[0]
-            attr_path_str = parts[1]  # Keep the rest as a dot-separated string
-
-            base_stuff = self.get_stuff(base_name)
-
-            try:
-                stuff_content = attrgetter(attr_path_str)(base_stuff.content)
-            except AttributeError as exc:
-                raise WorkingMemoryStuffAttributeNotFoundError(
-                    variable_name=name,
-                    message=f"Stuff attribute not found in attribute path '{name}': {exc}",
-                ) from exc
-
-            # Sometimes, some stuff content are Optional, therefore can be None. So Do not impose a wanted type
-            if stuff_content is not None and wanted_type is not None and not isinstance(stuff_content, wanted_type):
-                raise WorkingMemoryTypeError(
-                    variable_name=name,
-                    message=f"Content at '{name}' is of type {type(stuff_content).__name__}, it should be {wanted_type.__name__}",
-                )
-
-            return stuff_content
-        else:
-            content = self.get_stuff(name).content
-
-            if wanted_type is not None and not isinstance(content, wanted_type):
-                raise WorkingMemoryTypeError(
-                    variable_name=name,
-                    message=f"Content of '{name}' is of type {type(content).__name__}, it should be {wanted_type.__name__}",
-                )
-
-            return content
-
     def get_stuffs(self, names: Set[str]) -> List[Stuff]:
         the_stuffs: List[Stuff] = []
         for name in names:
@@ -155,7 +105,7 @@ class WorkingMemory(BaseModel):
 
     def is_stuff_code_used(self, stuff_code: str) -> bool:
         for stuff in self.root.values():
-            if stuff.concept_code == stuff_code:
+            if stuff.concept.code == stuff_code:
                 return True
         return False
 
@@ -173,6 +123,7 @@ class WorkingMemory(BaseModel):
         self.root[name] = stuff
 
     def add_new_stuff(self, name: str, stuff: Stuff, aliases: Optional[List[str]] = None):
+        # TODO: Add unit tests for this method
         log.debug(f"Adding new stuff '{name}' to WorkingMemory with aliases: {aliases}")
         if self.is_stuff_code_used(stuff_code=stuff.stuff_code):
             raise WorkingMemoryConsistencyError(f"Stuff code '{stuff.stuff_code}' is already used by another stuff")
@@ -193,15 +144,16 @@ class WorkingMemory(BaseModel):
                 self.set_alias(alias, name)
 
     def set_new_main_stuff(self, stuff: Stuff, name: Optional[str] = None):
+        # TODO: Add unit tests for this method
         if name:
             self.remove_main_stuff()
             self.add_new_stuff(name=name, stuff=stuff, aliases=[MAIN_STUFF_NAME])
-            log.verbose(f"Setting new main stuff {name}: {stuff.concept_code} = '{stuff.short_desc}'")
+            log.verbose(f"Setting new main stuff {name}: {stuff.concept.code} = '{stuff.short_desc}'")
             log.verbose(stuff.content.rendered_plain())
         else:
             self.remove_alias_to_main_stuff()
             self.set_stuff(name=MAIN_STUFF_NAME, stuff=stuff)
-            log.verbose(f"Setting new main stuff (unnamed): {stuff.concept_code} = '{stuff.short_desc}'")
+            log.verbose(f"Setting new main stuff (unnamed): {stuff.concept.code} = '{stuff.short_desc}'")
 
     def set_alias(self, alias: str, target: str) -> None:
         """Add an alias pointing to a target name."""
@@ -235,45 +187,61 @@ class WorkingMemory(BaseModel):
     def list_keys(self) -> List[str]:
         return list(self.root.keys()) + list(self.aliases.keys())
 
-    ################################################################################################
-    # Export methods
-    ################################################################################################
-
-    def content_dict(self) -> Dict[str, StuffContent]:
-        result = {name: stuff.content for name, stuff in self.root.items()}
-        # Include aliased content
-        result.update({alias: self.root[target].content for alias, target in self.aliases.items()})
-        return result
-
     def pretty_print(self):
         for name, stuff in self.root.items():
-            pretty_print(stuff.content.rendered_plain(), title=f"{name}: {stuff.concept_code}")
+            pretty_print(stuff.content.rendered_plain(), title=f"{name}: {stuff.concept.code}")
 
-    def update_from_strings_from_dict(self, context_dict: Dict[str, Any]) -> "WorkingMemory":
-        update_stuff_dict: StuffDict = {}
-        for name, str_content in context_dict.items():
-            if not isinstance(str_content, str):
-                continue
-            stuff_content: StuffContent
-            if str_content.startswith("http"):
-                if ".png" in str_content or ".jpg" in str_content or ".jpeg" in str_content:
-                    stuff_content = ImageContent(url=str_content)
-                else:
-                    log.warning(f"Skipping unknown URL content: {str_content}")
-                    continue
-            else:
-                stuff_content = TextContent(text=str_content)
-            update_stuff_dict[name] = Stuff(
-                stuff_name=name,
-                stuff_code="",
-                concept_code=NativeConcept.TEXT.code,
-                content=stuff_content,
-            )
-        self.root.update(update_stuff_dict)
-        return self
+    ################################################################################################
+    # ContextProviderAbstract
+    ################################################################################################
 
-    def save_to_memory_file(self, memory_file_path: str):
-        save_as_json_to_path(self.model_dump(serialize_as_any=True), memory_file_path)
+    @override
+    def generate_context(self) -> Dict[str, Any]:
+        # TODO: Add unit tests for this method
+        artefact_dict: StuffArtefactDict = {}
+        for name, stuff in self.root.items():
+            a = stuff.make_artefact()
+            artefact_dict[name] = a
+        for alias, target in self.aliases.items():
+            artefact_dict[alias] = artefact_dict[target]
+        return artefact_dict
+
+    @override
+    def get_typed_object_or_attribute(self, name: str, wanted_type: Optional[Type[Any]] = None) -> Any:
+        # TODO: Add unit tests for this method
+        if "." in name:
+            parts = name.split(".", 1)  # Split only at the first dot
+            base_name = parts[0]
+            attr_path_str = parts[1]  # Keep the rest as a dot-separated string
+
+            base_stuff = self.get_stuff(base_name)
+
+            try:
+                stuff_content = attrgetter(attr_path_str)(base_stuff.content)
+            except AttributeError as exc:
+                raise WorkingMemoryStuffAttributeNotFoundError(
+                    variable_name=name,
+                    message=f"Stuff attribute not found in attribute path '{name}': {exc}",
+                ) from exc
+
+            # Sometimes, some stuff content are Optional, therefore can be None. So Do not impose a wanted type
+            if stuff_content is not None and wanted_type is not None and not isinstance(stuff_content, wanted_type):
+                raise WorkingMemoryTypeError(
+                    variable_name=name,
+                    message=f"Content at '{name}' is of type {type(stuff_content).__name__}, it should be {wanted_type.__name__}",
+                )
+
+            return stuff_content
+        else:
+            content = self.get_stuff(name).content
+
+            if wanted_type is not None and not isinstance(content, wanted_type):
+                raise WorkingMemoryTypeError(
+                    variable_name=name,
+                    message=f"Content of '{name}' is of type {type(content).__name__}, it should be {wanted_type.__name__}",
+                )
+
+            return content
 
     ################################################################################################
     # Stuff accessors
