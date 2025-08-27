@@ -1,4 +1,4 @@
-from typing import Any, Protocol, Type, TypeVar
+from typing import Any, List, Optional, Protocol, Type, TypeVar
 
 from kajson.exceptions import ClassRegistryInheritanceError, ClassRegistryNotFoundError
 from kajson.kajson_manager import KajsonManager
@@ -15,25 +15,27 @@ PipeType = TypeVar("PipeType", bound="PipeAbstract", covariant=True)
 @runtime_checkable
 class PipeFactoryProtocol(Protocol[PipeBlueprintType, PipeType]):
     @classmethod
-    def make_pipe_from_blueprint(
+    def make_from_blueprint(
         cls,
-        domain_code: str,
+        domain: str,
         pipe_code: str,
-        pipe_blueprint: PipeBlueprintType,
+        blueprint: PipeBlueprintType,
+        concept_codes_from_the_same_domain: Optional[List[str]] = None,
     ) -> PipeType: ...
 
 
 class PipeFactory(PipeFactoryProtocol[PipeBlueprint, PipeAbstract]):
     @classmethod
     @override
-    def make_pipe_from_blueprint(
+    def make_from_blueprint(
         cls,
-        domain_code: str,
+        domain: str,
         pipe_code: str,
-        pipe_blueprint: PipeBlueprint,
+        blueprint: PipeBlueprint,
+        concept_codes_from_the_same_domain: Optional[List[str]] = None,
     ) -> PipeAbstract:
         # The factory class name for that specific type of Pipe is the pipe class name with "Factory" suffix
-        factory_class_name = f"{pipe_blueprint.type}Factory"
+        factory_class_name = f"{blueprint.type}Factory"
         try:
             pipe_factory: Type[PipeFactoryProtocol[Any, Any]] = KajsonManager.get_class_registry().get_required_subclass(
                 name=factory_class_name,
@@ -48,9 +50,10 @@ class PipeFactory(PipeFactoryProtocol[PipeBlueprint, PipeAbstract]):
                 f"Pipe '{pipe_code}' couldn't be created: factory '{factory_class_name}' is not a subclass of {type(PipeFactoryProtocol)}."
             ) from factory_inheritance_error
 
-        pipe_from_blueprint: PipeAbstract = pipe_factory.make_pipe_from_blueprint(
-            domain_code=domain_code,
+        pipe_from_blueprint: PipeAbstract = pipe_factory.make_from_blueprint(
+            domain=domain,
             pipe_code=pipe_code,
-            pipe_blueprint=pipe_blueprint,
+            blueprint=blueprint,
+            concept_codes_from_the_same_domain=concept_codes_from_the_same_domain,
         )
         return pipe_from_blueprint

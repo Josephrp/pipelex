@@ -1,5 +1,7 @@
 from typing import ClassVar, List, Optional, Tuple, Type
 
+from pipelex.core.concepts.concept_factory import ConceptFactory
+from pipelex.core.concepts.concept_native import NATIVE_CONCEPTS_DATA, NativeConceptEnum
 from pipelex.core.pipes.pipe_run_params import PipeOutputMultiplicity
 from pipelex.core.stuffs.stuff import Stuff
 from pipelex.core.stuffs.stuff_content import (
@@ -11,7 +13,7 @@ from pipelex.core.stuffs.stuff_content import (
 )
 from pipelex.core.stuffs.stuff_factory import StuffBlueprint, StuffFactory
 from pipelex.exceptions import PipeStackOverflowError
-from pipelex.pipe_operators.pipe_ocr import PIPE_OCR_INPUT_NAME
+from pipelex.pipe_operators.ocr.pipe_ocr import PIPE_OCR_INPUT_NAME
 from tests.cases import ImageTestCases, PDFTestCases
 
 
@@ -49,22 +51,22 @@ class PipeTestCases:
     # Create simple Stuff objects
     SIMPLE_STUFF_TEXT = StuffFactory.make_stuff(
         name="text",
-        concept_str="Text",
+        concept=ConceptFactory.make_native_concept(native_concept_data=NATIVE_CONCEPTS_DATA[NativeConceptEnum.TEXT]),
         content=TextContent(text="Describe a t-shirt in 2 sentences"),
     )
     SIMPLE_STUFF_IMAGE = StuffFactory.make_stuff(
         name="image",
-        concept_str="Image",
+        concept=ConceptFactory.make_native_concept(native_concept_data=NATIVE_CONCEPTS_DATA[NativeConceptEnum.IMAGE]),
         content=ImageContent(url=URL_IMG_FASHION_PHOTO_1),
     )
     SIMPLE_STUFF_PDF = StuffFactory.make_stuff(
         name=PIPE_OCR_INPUT_NAME,
-        concept_str="PDF",
+        concept=ConceptFactory.make_native_concept(native_concept_data=NATIVE_CONCEPTS_DATA[NativeConceptEnum.PDF]),
         content=PDFContent(url=PDFTestCases.DOCUMENT_URLS[0]),
     )
     COMPLEX_STUFF = StuffFactory.make_stuff(
         name="complex",
-        concept_str="tests.Complex",
+        concept=ConceptFactory.make(concept_code="Complex", domain="tests", definition="tests.Complex", structure_class_name="Complex"),
         content=ListContent(
             items=[
                 TextContent(text="The quick brown fox jumps over the lazy dog"),
@@ -75,7 +77,7 @@ class PipeTestCases:
 
     STUFF_CONTENT_WITH_IMAGE_ATTRIBUTE_1 = SomeContentWithImageAttribute(image_attribute=ImageContent(url=URL_IMG_FASHION_PHOTO_1))
     STUFF_WITH_IMAGE_ATTRIBUTE = StuffFactory.make_stuff(
-        concept_str="Image",
+        concept=ConceptFactory.make_native_concept(native_concept_data=NATIVE_CONCEPTS_DATA[NativeConceptEnum.IMAGE]),
         content=STUFF_CONTENT_WITH_IMAGE_ATTRIBUTE_1,
         name="stuff_with_image",
     )
@@ -84,7 +86,7 @@ class PipeTestCases:
         sub_object=STUFF_CONTENT_WITH_IMAGE_ATTRIBUTE_1,
     )
     STUFF_WITH_IMAGE_ATTRIBUTE_IN_SUB_OBJECT = StuffFactory.make_stuff(
-        concept_str="Image",
+        concept=ConceptFactory.make_native_concept(native_concept_data=NATIVE_CONCEPTS_DATA[NativeConceptEnum.IMAGE]),
         content=STUFF_CONTENT_WITH_IMAGE_ATTRIBUTE_IN_SUB_OBJECT,
         name="stuff_with_image_in_sub_object",
     )
@@ -108,7 +110,7 @@ class PipeTestCases:
     ]
     TRICKY_QUESTION_BLUEPRINT = StuffBlueprint(
         stuff_name="question",
-        concept_code="answer.Question",
+        concept_string="answer.Question",
         content=USER_TEXT_TRICKY_2,
     )
     BLUEPRINT_AND_PIPE: ClassVar[List[Tuple[str, StuffBlueprint, str]]] = [  # topic, blueprint, pipe

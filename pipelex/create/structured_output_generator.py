@@ -1,16 +1,18 @@
-"""Generate Pydantic BaseModel classes from TOML definitions for structured outputs."""
+"""Generate Pydantic BaseModel classes from concept structure blueprints for structured outputs."""
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Union
+import ast
+from typing import Any, Dict, List, Type, Union, cast
 
-import tomlkit
+from pipelex import log
+from pipelex.core.concepts.concept_blueprint import ConceptStructureBlueprint, ConceptStructureBlueprintFieldType
 
-from pipelex.core.concepts.concept_blueprint import ConceptStructureBlueprintFieldType
 
+class StructureGenerator:
+    """Generate Pydantic BaseModel classes from concept structure blueprints."""
 
-class StructuredOutputGenerator:
-    """Generate Pydantic BaseModel classes from TOML structured output definitions."""
+    # TODO: The methods that return False for a failed validation should just raise (proper errors).
 
     def __init__(self):
         self.imports = {
@@ -21,112 +23,54 @@ class StructuredOutputGenerator:
         }
         self.enum_definitions: Dict[str, Dict[str, Any]] = {}  # Store enum definitions
 
-    def generate_from_toml(self, toml_content: str) -> str:
-        """Generate Python module content from TOML structure and enum definitions.
+    def _format_default_value(self, value: Any) -> str:
+        """Format default value for Python code, ensuring strings use double quotes."""
+        if isinstance(value, str):
+            return f'"{value}"'
+        else:
+            return repr(value)
+
+    def generate_from_structure_blueprint(self, class_name: str, structure_blueprint: Dict[str, ConceptStructureBlueprint]) -> str:
+        """Generate Python module content from structure blueprint.
 
         Args:
-            toml_content: TOML content containing structure and enum definitions
+            class_name: Name of the class to generate
+            structure_blueprint: Dictionary mapping field names to their ConceptStructureBlueprint definitions
 
         Returns:
             Generated Python module content
         """
-        data = tomlkit.parse(toml_content)
-
-        # Process enums first (if any)
-        enums: List[str] = []
-        if "enum" in data:
-            enum_defs = data["enum"]
-            for enum_name, enum_def in enum_defs.items():  # type: ignore[attr-defined,union-attr]
-                self.enum_definitions[str(enum_name)] = dict(enum_def)  # type: ignore[arg-type]
-                enum_code = self.generate_enum(str(enum_name), dict(enum_def))  # type: ignore[arg-type]
-                enums.append(enum_code)
-
-        # Process structures
-        if "structure" not in data:
-            raise ValueError("TOML must contain a 'structure' section")
-
-        structures = data["structure"]
-        classes: List[str] = []
-
-        for class_name, structure_def in structures.items():  # type: ignore[attr-defined,union-attr]
-            class_code = self.generate_class(str(class_name), dict(structure_def))  # type: ignore[arg-type]
-            classes.append(class_code)
+        # Generate the class
+        class_code = self._generate_class_from_blueprint(class_name, structure_blueprint)
 
         # Generate the complete module
         imports_section = "\n".join(sorted(self.imports))
 
-        # Combine enums and classes
-        all_definitions: List[str] = []
-        if enums:
-            all_definitions.extend(enums)
-        if classes:
-            all_definitions.extend(classes)
+        generated_code = f"{imports_section}\n\n\n{class_code}\n"
 
-        definitions_section = "\n\n\n".join(all_definitions)
+        # Validate the generated code
+        if not self.validate_generated_code(generated_code, class_name):
+            raise ValueError(f"Generated code for class '{class_name}' failed validation")
 
-        return f"{imports_section}\n\n\n{definitions_section}\n"
+        return generated_code
 
-    def generate_enum(self, enum_name: str, enum_def: Dict[str, Any]) -> str:
-        """Generate an enum class definition.
-
-        Args:
-            enum_name: Name of the enum
-            enum_def: Enum definition from TOML
-
-        Returns:
-            Generated enum class code
-        """
-        definition = enum_def.get("definition", f"Generated {enum_name} enum")
-        values: List[str] | Dict[str, str] = enum_def.get("values", [])
-
-        # Generate enum header
-        enum_header = f'class {enum_name}(str, Enum):\n    """{definition}"""\n'
-
-        # Generate enum values
-        value_definitions: List[str] = []
-
-        if isinstance(values, list):
-            # Simple list of values
-            for value in values:
-                # Convert to uppercase for enum member name
-                value_str = str(value)
-                member_name = value_str.upper().replace(" ", "_").replace("-", "_")
-                value_definitions.append(f'    {member_name} = "{value_str}"')
-        else:
-            # Key-value pairs with descriptions
-            for key, description in values.items():
-                key_str = str(key)
-                desc_str = str(description)
-                member_name = key_str.upper().replace(" ", "_").replace("-", "_")
-                value_definitions.append(f'    {member_name} = "{key_str}"  # {desc_str}')
-
-        if not value_definitions:
-            # Empty enum with just pass
-            return enum_header + "\n    pass"
-
-        values_code = "\n".join(value_definitions)
-        return enum_header + "\n" + values_code
-
-    def generate_class(self, class_name: str, structure_def: Dict[str, Any]) -> str:
-        """Generate a single class definition.
+    def _generate_class_from_blueprint(self, class_name: str, structure_blueprint: Dict[str, ConceptStructureBlueprint]) -> str:
+        """Generate a class definition from ConceptStructureBlueprint.
 
         Args:
             class_name: Name of the class
-            structure_def: Structure definition from TOML
+            structure_blueprint: Dictionary mapping field names to their ConceptStructureBlueprint definitions
 
         Returns:
             Generated class code
         """
-        definition = structure_def.get("definition", f"Generated {class_name} class")
-        fields = structure_def.get("fields", {})
-
         # Generate class header
-        class_header = f'class {class_name}(StructuredContent):\n    """{definition}"""\n'
+        class_header = f'class {class_name}(StructuredContent):\n    """Generated {class_name} class"""\n'
 
         # Generate fields
         field_definitions: List[str] = []
-        for field_name, field_def in fields.items():
-            field_code = self._generate_field(str(field_name), field_def)  # type: ignore[arg-type]
+        for field_name, field_blueprint in structure_blueprint.items():
+            field_code = self._generate_field_from_blueprint(field_name, field_blueprint)
             field_definitions.append(field_code)
 
         if not field_definitions:
@@ -135,6 +79,102 @@ class StructuredOutputGenerator:
 
         fields_code = "\n".join(field_definitions)
         return class_header + "\n" + fields_code
+
+    def _generate_field_from_blueprint(self, field_name: str, field_blueprint: ConceptStructureBlueprint) -> str:
+        """Generate a field definition from ConceptStructureBlueprint.
+
+        Args:
+            field_name: Name of the field
+            field_blueprint: ConceptStructureBlueprint instance
+
+        Returns:
+            Generated field code
+        """
+        # Determine Python type
+        if field_blueprint.choices:
+            # Inline choices - use Literal type
+            python_type = f"Literal[{', '.join(repr(c) for c in field_blueprint.choices)}]"
+        else:
+            # Handle complex types
+            python_type = self._get_python_type_from_blueprint(field_blueprint)
+
+        # Make optional if not required
+        if not field_blueprint.required:
+            python_type = f"Optional[{python_type}]"
+
+        # Generate Field parameters
+        field_params = [f'description="{field_blueprint.definition}"']
+
+        if field_blueprint.required:
+            if field_blueprint.default_value is not None:
+                field_params.insert(0, f"default={self._format_default_value(field_blueprint.default_value)}")
+            else:
+                field_params.insert(0, "...")
+        else:
+            if field_blueprint.default_value is not None:
+                field_params.insert(0, f"default={self._format_default_value(field_blueprint.default_value)}")
+            else:
+                field_params.insert(0, "default=None")
+
+        field_call = f"Field({', '.join(field_params)})"
+
+        return f"    {field_name}: {python_type} = {field_call}"
+
+    def _get_python_type_from_blueprint(self, field_blueprint: ConceptStructureBlueprint) -> str:
+        """Convert ConceptStructureBlueprint to Python type annotation.
+
+        Args:
+            field_blueprint: ConceptStructureBlueprint instance
+
+        Returns:
+            Python type annotation string
+        """
+        if field_blueprint.type is None:
+            # This should not happen based on validation, but handle gracefully
+            return "str"
+
+        # Use match/case for type handling
+        match field_blueprint.type:
+            case ConceptStructureBlueprintFieldType.TEXT:
+                return "str"
+            case ConceptStructureBlueprintFieldType.NUMBER:
+                return "float"
+            case ConceptStructureBlueprintFieldType.INTEGER:
+                return "int"
+            case ConceptStructureBlueprintFieldType.BOOLEAN:
+                return "bool"
+            case ConceptStructureBlueprintFieldType.DATE:
+                self.imports.add("from datetime import datetime")
+                return "datetime"
+            case ConceptStructureBlueprintFieldType.LIST:
+                item_type = field_blueprint.item_type or "Any"
+                # Recursively handle item types if they're FieldType enums
+                try:
+                    item_type_enum = ConceptStructureBlueprintFieldType(item_type)
+                    # Create a temporary blueprint for the item type
+                    temp_blueprint = ConceptStructureBlueprint(definition="temp", type=item_type_enum)
+                    item_type = self._get_python_type_from_blueprint(temp_blueprint)
+                except ValueError:
+                    # Keep as string if not a known FieldType
+                    pass
+                return f"List[{item_type}]"
+            case ConceptStructureBlueprintFieldType.DICT:
+                key_type = field_blueprint.key_type or "str"
+                value_type = field_blueprint.value_type or "Any"
+                # Recursively handle key and value types
+                try:
+                    key_type_enum = ConceptStructureBlueprintFieldType(key_type)
+                    temp_blueprint = ConceptStructureBlueprint(definition="temp", type=key_type_enum)
+                    key_type = self._get_python_type_from_blueprint(temp_blueprint)
+                except ValueError:
+                    pass
+                try:
+                    value_type_enum = ConceptStructureBlueprintFieldType(value_type)
+                    temp_blueprint = ConceptStructureBlueprint(definition="temp", type=value_type_enum)
+                    value_type = self._get_python_type_from_blueprint(temp_blueprint)
+                except ValueError:
+                    pass
+                return f"Dict[{key_type}, {value_type}]"
 
     def _generate_field(self, field_name: str, field_def: Union[Dict[str, Any], str]) -> str:
         """Generate a single field definition.
@@ -173,12 +213,12 @@ class StructuredOutputGenerator:
 
         if required:
             if default_value is not None:
-                field_params.insert(0, f"default={repr(default_value)}")
+                field_params.insert(0, f"default={self._format_default_value(default_value)}")
             else:
                 field_params.insert(0, "...")
         else:
             if default_value is not None:
-                field_params.insert(0, f"default={repr(default_value)}")
+                field_params.insert(0, f"default={self._format_default_value(default_value)}")
             else:
                 field_params.insert(0, "default=None")
 
@@ -219,6 +259,9 @@ class StructuredOutputGenerator:
                 return "int"
             case ConceptStructureBlueprintFieldType.BOOLEAN:
                 return "bool"
+            case ConceptStructureBlueprintFieldType.DATE:
+                self.imports.add("from datetime import datetime")
+                return "datetime"
             case ConceptStructureBlueprintFieldType.LIST:
                 item_type = field_def.get("item_type", "Any")
                 # Check if item_type is an enum reference
@@ -254,73 +297,155 @@ class StructuredOutputGenerator:
                 # Unknown FieldType, assume it's a custom type
                 return str(field_type)
 
+    def validate_generated_code(self, python_code: str, expected_class_name: str) -> bool:
+        """Validate that the generated Python code is syntactically correct and executable.
 
-def generate_structured_outputs_from_toml_file(toml_file_path: str, output_file_path: str) -> None:
-    """Generate structured output Python module from TOML file.
+        Args:
+            python_code: The generated Python code to validate
+            expected_class_name: The name of the class that should be created
 
-    Args:
-        toml_file_path: Path to input TOML file containing structure definitions
-        output_file_path: Path to output Python file
-    """
-    with open(toml_file_path, "r", encoding="utf-8") as f:
-        toml_content = f.read()
+        Returns:
+            True if the code is valid, False otherwise
+        """
+        # Step 1: Syntax validation
+        if not self._validate_syntax(python_code):
+            return False
 
-    generator = StructuredOutputGenerator()
-    python_code = generator.generate_from_toml(toml_content)
+        # Step 2: Compilation validation
+        if not self._validate_compilation(python_code):
+            return False
 
-    with open(output_file_path, "w", encoding="utf-8") as f:
-        f.write(python_code)
+        # Step 3: Execution and class creation validation
+        if not self._validate_execution(python_code, expected_class_name):
+            return False
 
+        # Step 4: Class instantiation validation
+        if not self._validate_instantiation(python_code, expected_class_name):
+            return False
 
-def generate_structured_outputs_from_toml_string(toml_content: str) -> str:
-    """Generate structured output Python code from TOML string.
+        return True
 
-    Args:
-        toml_content: TOML content as string containing structure definitions
+    def _validate_syntax(self, python_code: str) -> bool:
+        """Validate that the code has valid Python syntax."""
+        try:
+            ast.parse(python_code)
+            return True
+        except SyntaxError as e:
+            log.error(f"Syntax error in generated code: {e}")
+            return False
 
-    Returns:
-        Generated Python module content
-    """
-    generator = StructuredOutputGenerator()
-    return generator.generate_from_toml(toml_content)
+    def _validate_compilation(self, python_code: str) -> bool:
+        """Validate that the code can be compiled."""
+        try:
+            compile(python_code, "<generated>", "exec")
+            return True
+        except Exception as e:
+            log.error(f"Compilation error in generated code: {e}")
+            return False
 
+    def _validate_execution(self, python_code: str, expected_class_name: str) -> bool:
+        """Validate that the code executes and creates the expected class."""
+        try:
+            # Import necessary modules for the execution context
+            from datetime import datetime
+            from enum import Enum
+            from typing import Any, Dict, List, Literal, Optional
 
-def generate_structured_output_from_inline_definition(
-    class_name: str, fields_def: Dict[str, Any], enums: Optional[Dict[str, Dict[str, Any]]] = None
-) -> str:
-    """Generate structured output Python code from inline field definitions.
+            from pydantic import Field
 
-    Args:
-        class_name: Name of the class to generate
-        fields_def: Dictionary of field definitions (same format as TOML structure.fields)
-        enums: Optional dictionary of enum definitions to include
+            from pipelex.core.stuffs.stuff_content import StructuredContent
 
-    Returns:
-        Generated Python module content
-    """
-    generator = StructuredOutputGenerator()
+            # Provide necessary imports in the execution context
+            exec_globals = {
+                "__builtins__": __builtins__,
+                "datetime": datetime,
+                "Enum": Enum,
+                "Optional": Optional,
+                "List": List,
+                "Dict": Dict,
+                "Any": Any,
+                "Literal": Literal,
+                "Field": Field,
+                "StructuredContent": StructuredContent,
+            }
+            exec_locals: Dict[str, Any] = {}
+            exec(python_code, exec_globals, exec_locals)
 
-    # Add any provided enums
-    if enums:
-        for enum_name, enum_def in enums.items():
-            generator.enum_definitions[enum_name] = enum_def
+            # Verify the expected class was created
+            if expected_class_name not in exec_locals:
+                log.error(f"Expected class '{expected_class_name}' not found in generated code")
+                return False
 
-    # Create a structure definition from the inline fields
-    structure_def = {"definition": f"Generated {class_name} structure", "fields": fields_def}
+            # Verify it's actually a class
+            if not isinstance(exec_locals[expected_class_name], type):
+                log.error(f"'{expected_class_name}' is not a class")
+                return False
 
-    # Generate the class
-    class_code = generator.generate_class(class_name, structure_def)
+            return True
 
-    # Generate enums if any
-    enum_codes: List[str] = []
-    if enums:
-        for enum_name, enum_def in enums.items():
-            enum_code = generator.generate_enum(enum_name, enum_def)
-            enum_codes.append(enum_code)
+        except ImportError as e:
+            log.error(f"Import error in generated code: {e}")
+            return False
+        except Exception as e:
+            log.error(f"Execution error in generated code: {e}")
+            return False
 
-    # Combine everything
-    imports_section = "\n".join(sorted(generator.imports))
-    all_definitions: List[str] = enum_codes + [class_code] if enum_codes else [class_code]
-    definitions_section = "\n\n\n".join(all_definitions)
+    def _validate_instantiation(self, python_code: str, expected_class_name: str) -> bool:
+        """Validate that the generated class can be instantiated."""
+        try:
+            # Import necessary modules for the execution context
+            from datetime import datetime
+            from enum import Enum
+            from typing import Any, Dict, List, Literal, Optional
 
-    return f"{imports_section}\n\n\n{definitions_section}\n"
+            from pydantic import Field
+
+            from pipelex.core.stuffs.stuff_content import StructuredContent
+
+            # Provide necessary imports in the execution context
+            exec_globals = {
+                "__builtins__": __builtins__,
+                "datetime": datetime,
+                "Enum": Enum,
+                "Optional": Optional,
+                "List": List,
+                "Dict": Dict,
+                "Any": Any,
+                "Literal": Literal,
+                "Field": Field,
+                "StructuredContent": StructuredContent,
+            }
+            exec_locals: Dict[str, Any] = {}
+            exec(python_code, exec_globals, exec_locals)
+
+            generated_class = cast(Type[Any], exec_locals[expected_class_name])
+
+            # Try to create an instance (this will catch Pydantic validation issues)
+            # For validation purposes, we'll try to create an instance with minimal valid data
+            instance: Any = None
+            try:
+                # First try with no arguments (works for classes with all optional fields)
+                instance = generated_class()
+            except Exception:
+                # If that fails, try with empty dict (some models accept this)
+                try:
+                    instance = generated_class(**{})
+                except Exception:
+                    # If that fails too, the class structure is probably fine but requires specific data
+                    # For validation purposes, we'll just check that it's a valid Pydantic model class
+                    if not hasattr(generated_class, "model_fields"):
+                        log.error("Generated class doesn't appear to be a Pydantic model")
+                        return False
+                    # Class structure is valid, just requires specific data to instantiate
+                    return True
+
+            # Verify it's a Pydantic model with the expected structure
+            if instance is not None and not hasattr(instance, "model_fields"):
+                log.error("Generated class doesn't appear to be a Pydantic model")
+                return False
+
+            return True
+
+        except Exception as e:
+            log.error(f"Instantiation error in generated code: {e}")
+            return False

@@ -4,6 +4,7 @@ from click import ClickException
 from typing_extensions import override
 
 from pipelex.tools.exceptions import RootException
+from pipelex.tools.misc.context_provider_abstract import ContextProviderException
 from pipelex.types import StrEnum
 
 
@@ -22,7 +23,7 @@ class StaticValidationError(Exception):
     def __init__(
         self,
         error_type: StaticValidationErrorType,
-        domain_code: str,
+        domain: str,
         pipe_code: Optional[str] = None,
         variable_names: Optional[List[str]] = None,
         required_concept_codes: Optional[List[str]] = None,
@@ -31,7 +32,7 @@ class StaticValidationError(Exception):
         explanation: Optional[str] = None,
     ):
         self.error_type = error_type
-        self.domain_code = domain_code
+        self.domain = domain
         self.pipe_code = pipe_code
         self.variable_names = variable_names
         self.required_concept_codes = required_concept_codes
@@ -41,7 +42,7 @@ class StaticValidationError(Exception):
         super().__init__()
 
     def desc(self) -> str:
-        msg = f"{self.error_type} • domain='{self.domain_code}'"
+        msg = f"{self.error_type} • domain='{self.domain}'"
         if self.pipe_code:
             msg += f" • pipe='{self.pipe_code}'"
         if self.variable_names:
@@ -73,10 +74,8 @@ class WorkingMemoryConsistencyError(WorkingMemoryError):
     pass
 
 
-class WorkingMemoryVariableError(WorkingMemoryError):
-    def __init__(self, variable_name: str, message: str, *args: object, **kwargs: object) -> None:
-        self.variable_name = variable_name
-        super().__init__(message, *args, **kwargs)
+class WorkingMemoryVariableError(WorkingMemoryError, ContextProviderException):
+    pass
 
 
 class WorkingMemoryTypeError(WorkingMemoryVariableError):
@@ -251,10 +250,6 @@ class ConceptError(Exception):
 
 
 class ConceptCodeError(ConceptError):
-    pass
-
-
-class ConceptDomainError(ConceptError):
     pass
 
 

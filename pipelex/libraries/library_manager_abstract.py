@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List, Optional
 
-from pipelex.core.bundles.pipelex_bundle import PipelexBundle
+from pipelex.core.bundles.pipelex_bundle_blueprint import PipelexBundleBlueprint
 from pipelex.core.pipes.pipe_abstract import PipeAbstract
 
 
@@ -32,5 +32,5 @@ class LibraryManagerAbstract(ABC):
         pass
 
     @abstractmethod
-    def load_from_pipelex_bundle(self, pipelex_bundle: PipelexBundle) -> List[PipeAbstract]:
+    def load_from_blueprint(self, blueprint: PipelexBundleBlueprint) -> List[PipeAbstract]:
         pass

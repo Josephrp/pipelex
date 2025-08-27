@@ -6,7 +6,8 @@ import pytest
 from pytest import FixtureRequest
 
 from pipelex import log
-from pipelex.core.concepts.concept_native import NativeConcept
+from pipelex.core.concepts.concept_factory import ConceptFactory
+from pipelex.core.concepts.concept_native import NativeConceptEnum
 from pipelex.core.memory.working_memory_factory import WorkingMemoryFactory
 from pipelex.core.pipes.pipe_input_spec import TypedNamedInputRequirement
 from pipelex.core.stuffs.stuff_content import PageContent, TextContent
@@ -29,7 +30,9 @@ class TestDryWorkingMemory:
         needed_inputs = [
             TypedNamedInputRequirement(
                 variable_name="page",
-                concept_code=NativeConcept.PAGE.code,
+                concept=ConceptFactory.make(
+                    concept_code=NativeConceptEnum.PAGE.value, domain="test_tricky_questions", definition="Lorem Ipsum", structure_class_name="Page"
+                ),
                 structure_class=PageContent,
             ),
         ]
@@ -41,7 +44,7 @@ class TestDryWorkingMemory:
 
         # Verify concept code is correct
         page_stuff = dry_memory.get_stuff("page")
-        assert page_stuff.concept_code == NativeConcept.PAGE.code
+        assert page_stuff.concept.code == NativeConceptEnum.PAGE.value
         assert page_stuff.stuff_name == "page"
 
         # Verify structured content was created properly
@@ -69,12 +72,17 @@ class TestDryWorkingMemory:
         needed_inputs = [
             TypedNamedInputRequirement(
                 variable_name="thoughtful_answer",
-                concept_code="test_tricky_questions.ThoughtfulAnswer",
+                concept=ConceptFactory.make(
+                    concept_code="ThoughtfulAnswer",
+                    domain="test_tricky_questions",
+                    definition="Thoughtful answer",
+                    structure_class_name="ThoughtfulAnswer",
+                ),
                 structure_class=ThoughtfulAnswer,
             ),
             TypedNamedInputRequirement(
                 variable_name="question",
-                concept_code="answer.Question",
+                concept=ConceptFactory.make(concept_code="Question", domain="answer", definition="Question", structure_class_name="Question"),
                 structure_class=TextContent,
             ),
         ]
@@ -88,10 +96,12 @@ class TestDryWorkingMemory:
 
         # Verify concept codes are preserved
         thoughtful_answer_stuff = dry_memory.get_stuff("thoughtful_answer")
-        assert thoughtful_answer_stuff.concept_code == "test_tricky_questions.ThoughtfulAnswer"
+        assert thoughtful_answer_stuff.concept.code == "ThoughtfulAnswer"
+        assert thoughtful_answer_stuff.concept.domain == "test_tricky_questions"
 
         question_stuff = dry_memory.get_stuff("question")
-        assert question_stuff.concept_code == "answer.Question"
+        assert question_stuff.concept.code == "Question"
+        assert question_stuff.concept.domain == "answer"
 
         # Verify structured content was created properly
         thoughtful_answer_content = thoughtful_answer_stuff.content
@@ -120,12 +130,22 @@ class TestDryWorkingMemory:
         needed_inputs = [
             TypedNamedInputRequirement(
                 variable_name="question_analysis",
-                concept_code="QuestionAnalysis",
+                concept=ConceptFactory.make(
+                    concept_code="QuestionAnalysis",
+                    domain="test_tricky_questions",
+                    definition="Question analysis",
+                    structure_class_name="QuestionAnalysis",
+                ),
                 structure_class=TextContent,
             ),
             TypedNamedInputRequirement(
                 variable_name="conclusion",
-                concept_code="test_tricky_questions.ThoughtfulAnswerConclusion",
+                concept=ConceptFactory.make(
+                    concept_code="ThoughtfulAnswerConclusion",
+                    domain="test_tricky_questions",
+                    definition="Thoughtful answer conclusion",
+                    structure_class_name="ThoughtfulAnswerConclusion",
+                ),
                 structure_class=TextContent,
             ),
         ]
@@ -140,11 +160,12 @@ class TestDryWorkingMemory:
         # Verify both use TextContent
         question_analysis_stuff = dry_memory.get_stuff("question_analysis")
         assert isinstance(question_analysis_stuff.content, TextContent)
-        assert question_analysis_stuff.concept_code == "QuestionAnalysis"
+        assert question_analysis_stuff.concept.code == "QuestionAnalysis"
 
         conclusion_stuff = dry_memory.get_stuff("conclusion")
         assert isinstance(conclusion_stuff.content, TextContent)
-        assert conclusion_stuff.concept_code == "test_tricky_questions.ThoughtfulAnswerConclusion"
+        assert conclusion_stuff.concept.code == "ThoughtfulAnswerConclusion"
+        assert conclusion_stuff.concept.domain == "test_tricky_questions"
 
         log.info("Created mock working memory with TextContent fallback:")
         dry_memory.pretty_print_summary()
@@ -159,17 +180,27 @@ class TestDryWorkingMemory:
         needed_inputs = [
             TypedNamedInputRequirement(
                 variable_name="thoughtful_answer",
-                concept_code="test_tricky_questions.ThoughtfulAnswer",
+                concept=ConceptFactory.make(
+                    concept_code="ThoughtfulAnswer",
+                    domain="test_tricky_questions",
+                    definition="Thoughtful answer",
+                    structure_class_name="ThoughtfulAnswer",
+                ),
                 structure_class=ThoughtfulAnswer,
             ),
             TypedNamedInputRequirement(
                 variable_name="raw_question",
-                concept_code="answer.Question",
+                concept=ConceptFactory.make(concept_code="Question", domain="answer", definition="Question", structure_class_name="Question"),
                 structure_class=TextContent,
             ),
             TypedNamedInputRequirement(
                 variable_name="analysis_result",
-                concept_code="QuestionAnalysis",
+                concept=ConceptFactory.make(
+                    concept_code="QuestionAnalysis",
+                    domain="test_tricky_questions",
+                    definition="Question analysis",
+                    structure_class_name="QuestionAnalysis",
+                ),
                 structure_class=TextContent,
             ),
         ]
@@ -182,16 +213,19 @@ class TestDryWorkingMemory:
         # Verify structured content
         thoughtful_answer_stuff = dry_memory.get_stuff("thoughtful_answer")
         assert isinstance(thoughtful_answer_stuff.content, ThoughtfulAnswer)
-        assert thoughtful_answer_stuff.concept_code == "test_tricky_questions.ThoughtfulAnswer"
+        assert thoughtful_answer_stuff.concept.code == "ThoughtfulAnswer"
+        assert thoughtful_answer_stuff.concept.domain == "test_tricky_questions"
 
         # Verify text content
         raw_question_stuff = dry_memory.get_stuff("raw_question")
         assert isinstance(raw_question_stuff.content, TextContent)
-        assert raw_question_stuff.concept_code == "answer.Question"
+        assert raw_question_stuff.concept.code == "Question"
+        assert raw_question_stuff.concept.domain == "answer"
 
         analysis_result_stuff = dry_memory.get_stuff("analysis_result")
         assert isinstance(analysis_result_stuff.content, TextContent)
-        assert analysis_result_stuff.concept_code == "QuestionAnalysis"
+        assert analysis_result_stuff.concept.code == "QuestionAnalysis"
+        assert analysis_result_stuff.concept.domain == "test_tricky_questions"
 
         log.info("Created mock working memory with mixed content types:")
         dry_memory.pretty_print_summary()
@@ -224,17 +258,27 @@ class TestDryWorkingMemory:
         needed_inputs = [
             TypedNamedInputRequirement(
                 variable_name="question",
-                concept_code="answer.Question",
+                concept=ConceptFactory.make(concept_code="Question", domain="answer", definition="Question", structure_class_name="Question"),
                 structure_class=TextContent,
             ),
             TypedNamedInputRequirement(
                 variable_name="question_analysis",
-                concept_code="QuestionAnalysis",
+                concept=ConceptFactory.make(
+                    concept_code="QuestionAnalysis",
+                    domain="test_tricky_questions",
+                    definition="Question analysis",
+                    structure_class_name="QuestionAnalysis",
+                ),
                 structure_class=TextContent,
             ),
             TypedNamedInputRequirement(
                 variable_name="thoughtful_answer",
-                concept_code="test_tricky_questions.ThoughtfulAnswer",
+                concept=ConceptFactory.make(
+                    concept_code="ThoughtfulAnswer",
+                    domain="test_tricky_questions",
+                    definition="Thoughtful answer",
+                    structure_class_name="ThoughtfulAnswer",
+                ),
                 structure_class=ThoughtfulAnswer,
             ),
         ]

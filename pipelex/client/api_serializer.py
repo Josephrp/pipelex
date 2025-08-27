@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, cast
 
 from pipelex.client.protocol import CompactMemory
-from pipelex.core.concepts.concept_native import NativeConcept
+from pipelex.core.concepts.concept_native import NativeConceptEnum
 from pipelex.core.memory.working_memory import WorkingMemory
 from pipelex.core.pipes.pipe_output import PipeOutput
 from pipelex.core.stuffs.stuff_content import TextContent
@@ -34,10 +34,10 @@ class ApiSerializer:
             return compact_memory
 
         for stuff_name, stuff in working_memory.root.items():
-            if stuff.concept_code == NativeConcept.TEXT.code:
+            if stuff.concept.code == NativeConceptEnum.TEXT.value:
                 stuff_content = cast(TextContent, stuff.content)
                 item_dict: Dict[str, Any] = {
-                    "concept_code": stuff.concept_code,
+                    "concept_code": stuff.concept.code,
                     "content": stuff_content.text,
                 }
             else:
@@ -45,7 +45,7 @@ class ApiSerializer:
                 clean_content = cls._clean_and_format_content(content_dict)
 
                 item_dict = {
-                    "concept_code": stuff.concept_code,
+                    "concept_code": stuff.concept.code,
                     "content": clean_content,
                 }
 

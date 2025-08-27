@@ -2,6 +2,8 @@ import pytest
 from pytest import FixtureRequest
 
 from pipelex import pretty_print
+from pipelex.core.concepts.concept_factory import ConceptFactory
+from pipelex.core.concepts.concept_native import NATIVE_CONCEPTS_DATA, NativeConceptEnum
 from pipelex.core.memory.working_memory_factory import WorkingMemoryFactory
 from pipelex.core.pipes.pipe_output import PipeOutput
 from pipelex.core.pipes.pipe_run_params import PipeRunMode
@@ -60,7 +62,11 @@ class TestImageInputs:
         page_content = PageContent(text_and_images=text_and_images, page_view=image_content)
 
         # Create stuff from page content
-        stuff = StuffFactory.make_stuff(concept_str="Page", content=page_content, name="page")
+        stuff = StuffFactory.make_stuff(
+            concept=ConceptFactory.make_native_concept(native_concept_data=NATIVE_CONCEPTS_DATA[NativeConceptEnum.PAGE]),
+            content=page_content,
+            name="page",
+        )
 
         # Create working memory
         working_memory = WorkingMemoryFactory.make_from_single_stuff(stuff=stuff)

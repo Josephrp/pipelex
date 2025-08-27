@@ -6,14 +6,15 @@ from pydantic import BaseModel
 
 from pipelex import log
 from pipelex.client.protocol import CompactMemory, ImplicitMemory
-from pipelex.core.concepts.concept_native import NativeConcept
+from pipelex.core.concepts.concept import ConceptBlueprint, SpecialDomain
+from pipelex.core.concepts.concept_native import NativeConceptEnum
 from pipelex.core.memory.working_memory import MAIN_STUFF_NAME, StuffDict, WorkingMemory
 from pipelex.core.pipes.pipe_input_spec import TypedNamedInputRequirement
 from pipelex.core.stuffs.stuff import Stuff
 from pipelex.core.stuffs.stuff_content import ImageContent, ListContent, PDFContent, StuffContent, TextContent
-from pipelex.core.stuffs.stuff_factory import StuffBlueprint, StuffFactory
+from pipelex.core.stuffs.stuff_factory import StuffFactory
 from pipelex.exceptions import WorkingMemoryFactoryError
-from pipelex.tools.misc.json_utils import load_json_dict_from_path
+from pipelex.hub import get_required_concept
 
 
 class WorkingMemoryFactory(BaseModel):
@@ -21,25 +22,29 @@ class WorkingMemoryFactory(BaseModel):
     def make_from_text(
         cls,
         text: str,
-        concept_str: str = NativeConcept.TEXT.code,
+        concept_string: str = SpecialDomain.NATIVE.value + "." + NativeConceptEnum.TEXT.value,
         name: Optional[str] = "text",
     ) -> WorkingMemory:
-        stuff = StuffFactory.make_stuff(
-            concept_str=concept_str,
-            content=TextContent(text=text),
-            name=name,
+        ConceptBlueprint.validate_concept_string(concept_string=concept_string)
+        return cls.make_from_single_stuff(
+            stuff=StuffFactory.make_stuff(
+                concept=get_required_concept(concept_string=concept_string),
+                content=TextContent(text=text),
+                name=name,
+            )
         )
-        return cls.make_from_single_stuff(stuff=stuff)
 
     @classmethod
     def make_from_image(
         cls,
         image_url: str,
-        concept_str: str = NativeConcept.IMAGE.code,
+        concept_string: str = SpecialDomain.NATIVE.value + "." + NativeConceptEnum.IMAGE.value,
         name: Optional[str] = "image",
     ) -> WorkingMemory:
+        # TODO: validate that the concept is compatible with an image concept
+        ConceptBlueprint.validate_concept_string(concept_string=concept_string)
         stuff = StuffFactory.make_stuff(
-            concept_str=concept_str,
+            concept=get_required_concept(concept_string=concept_string),
             content=ImageContent(url=image_url),
             name=name,
         )
@@ -49,33 +54,24 @@ class WorkingMemoryFactory(BaseModel):
     def make_from_pdf(
         cls,
         pdf_url: str,
-        concept_str: str = NativeConcept.PDF.code,
+        concept_string: str = SpecialDomain.NATIVE.value + "." + NativeConceptEnum.PDF.value,
         name: Optional[str] = "pdf",
     ) -> WorkingMemory:
-        stuff = StuffFactory.make_stuff(
-            concept_str=concept_str,
-            content=PDFContent(url=pdf_url),
-            name=name,
+        ConceptBlueprint.validate_concept_string(concept_string=concept_string)
+        return cls.make_from_single_stuff(
+            stuff=StuffFactory.make_stuff(
+                concept=get_required_concept(concept_string=concept_string),
+                content=PDFContent(url=pdf_url),
+                name=name,
+            )
         )
-        return cls.make_from_single_stuff(stuff=stuff)
-
-    @classmethod
-    def make_from_stuff_and_name(cls, stuff: Stuff, name: str) -> WorkingMemory:
-        stuff_dict: StuffDict = {name: stuff}
-        aliases: Dict[str, str] = {MAIN_STUFF_NAME: name}
-        return WorkingMemory(root=stuff_dict, aliases=aliases)
-
-    @classmethod
-    def make_from_single_blueprint(cls, blueprint: StuffBlueprint) -> WorkingMemory:
-        stuff = StuffFactory.make_from_blueprint(blueprint=blueprint)
-        return cls.make_from_single_stuff(stuff=stuff)
 
     @classmethod
     def make_from_single_stuff(cls, stuff: Stuff) -> WorkingMemory:
-        name = stuff.stuff_name
-        if not name:
+        if not stuff.stuff_name:
             raise WorkingMemoryFactoryError(f"Cannot make_from_single_stuff because stuff has no name: {stuff}")
-        return cls.make_from_stuff_and_name(stuff=stuff, name=name)
+        stuff_dict: StuffDict = {stuff.stuff_name: stuff}
+        return WorkingMemory(root=stuff_dict, aliases={MAIN_STUFF_NAME: stuff.stuff_name})
 
     @classmethod
     def make_from_multiple_stuffs(
@@ -103,28 +99,23 @@ class WorkingMemoryFactory(BaseModel):
 
     @classmethod
     def make_from_strings_from_dict(cls, input_dict: Dict[str, Any]) -> WorkingMemory:
+        # TODO: Add unit tests for this method
         stuff_dict: StuffDict = {}
         for name, content in input_dict.items():
             if not isinstance(content, str):
                 continue
             text_content = TextContent(text=content)
-            stuff_dict[name] = Stuff(
-                stuff_name=name,
-                stuff_code="",
-                concept_code=NativeConcept.TEXT.code,
+            stuff_dict[name] = StuffFactory.make_stuff(
+                concept=get_required_concept(concept_string=SpecialDomain.NATIVE.value + "." + NativeConceptEnum.TEXT.value),
                 content=text_content,
+                name=name,
+                code="",
             )
         return WorkingMemory(root=stuff_dict)
 
     @classmethod
     def make_empty(cls) -> WorkingMemory:
         return WorkingMemory(root={})
-
-    @classmethod
-    def make_from_memory_file(cls, memory_file_path: str) -> WorkingMemory:
-        working_memory_dict = load_json_dict_from_path(memory_file_path)
-        working_memory = WorkingMemory.model_validate(working_memory_dict)
-        return working_memory
 
     @classmethod
     def make_from_compact_memory(
@@ -180,7 +171,7 @@ class WorkingMemoryFactory(BaseModel):
             return MockFactory.build()  # type: ignore
         else:
             # Fallback to text content
-            return TextContent(text=f"DRY RUN: Mock content for '{requirement.variable_name}' ({requirement.concept_code})")
+            return TextContent(text=f"DRY RUN: Mock content for '{requirement.variable_name}' ({requirement.concept.code})")
 
     @classmethod
     def make_for_dry_run(cls, needed_inputs: List[TypedNamedInputRequirement]) -> "WorkingMemory":
@@ -193,13 +184,12 @@ class WorkingMemoryFactory(BaseModel):
         Returns:
             WorkingMemory with mock objects for each needed input
         """
-
         working_memory = cls.make_empty()
 
         for requirement in needed_inputs:
             log.debug(
                 f"Creating dry run mock for '{requirement.variable_name}' with concept "
-                f"'{requirement.concept_code}' and class '{requirement.structure_class.__name__}'"
+                f"'{requirement.concept.code}' and class '{requirement.structure_class.__name__}'"
             )
 
             try:
@@ -207,11 +197,11 @@ class WorkingMemoryFactory(BaseModel):
                     mock_content = cls.create_mock_content(requirement)
 
                     # Create stuff with mock content
-                    mock_stuff = Stuff(
-                        stuff_name=requirement.variable_name,
-                        stuff_code=shortuuid.uuid()[:5],
-                        concept_code=requirement.concept_code,
+                    mock_stuff = StuffFactory.make_stuff(
+                        concept=requirement.concept,
                         content=mock_content,
+                        name=requirement.variable_name,
+                        code=shortuuid.uuid()[:5],
                     )
 
                     working_memory.add_new_stuff(name=requirement.variable_name, stuff=mock_stuff)
@@ -232,26 +222,26 @@ class WorkingMemoryFactory(BaseModel):
                     mock_list_content = ListContent[StuffContent](items=items)
 
                     # Create stuff with mock content
-                    mock_stuff = Stuff(
-                        stuff_name=requirement.variable_name,
-                        stuff_code=shortuuid.uuid()[:5],
-                        concept_code=requirement.concept_code,
+                    mock_stuff = StuffFactory.make_stuff(
+                        concept=requirement.concept,
                         content=mock_list_content,
+                        name=requirement.variable_name,
+                        code=shortuuid.uuid()[:5],
                     )
 
                     working_memory.add_new_stuff(name=requirement.variable_name, stuff=mock_stuff)
 
             except Exception as exc:
                 log.warning(
-                    f"Failed to create mock for '{requirement.variable_name}' ({requirement.concept_code}): {exc}. Using fallback text content."
+                    f"Failed to create mock for '{requirement.variable_name}' ({requirement.concept.code}): {exc}. Using fallback text content."
                 )
                 # Create fallback text content
-                fallback_content = TextContent(text=f"DRY RUN: Fallback mock for '{requirement.variable_name}' ({requirement.concept_code})")
-                fallback_stuff = Stuff(
-                    stuff_name=requirement.variable_name,
-                    stuff_code=shortuuid.uuid()[:5],
-                    concept_code=requirement.concept_code,
+                fallback_content = TextContent(text=f"DRY RUN: Fallback mock for '{requirement.variable_name}' ({requirement.concept.code})")
+                fallback_stuff = StuffFactory.make_stuff(
+                    concept=requirement.concept,
                     content=fallback_content,
+                    name=requirement.variable_name,
+                    code=shortuuid.uuid()[:5],
                 )
                 working_memory.add_new_stuff(name=requirement.variable_name, stuff=fallback_stuff)
 

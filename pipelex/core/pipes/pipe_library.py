@@ -16,16 +16,18 @@ PipeLibraryRoot = Dict[str, PipeAbstract]
 
 
 class PipeLibrary(RootModel[PipeLibraryRoot], PipeProviderAbstract):
+    @override
     def validate_with_libraries(self):
         concept_provider = get_concept_provider()
         for pipe in self.root.values():
+            pipe.validate_output()
             try:
-                for concept_code in pipe.concept_dependencies():
+                for concept in pipe.concept_dependencies():
                     try:
-                        concept_provider.get_required_concept(concept_code=concept_code)
+                        concept_provider.get_required_concept(concept_string=concept.concept_string)
                     except ConceptError as concept_error:
                         raise PipeLibraryError(
-                            f"Error validating pipe '{pipe.code}' dependency concept '{concept_code}' because of: {concept_error}"
+                            f"Error validating pipe '{pipe.code}' dependency concept '{concept.concept_string}' because of: {concept_error}"
                         ) from concept_error
                 for pipe_code in pipe.pipe_dependencies():
                     self.get_required_pipe(pipe_code=pipe_code)
@@ -37,15 +39,13 @@ class PipeLibrary(RootModel[PipeLibraryRoot], PipeProviderAbstract):
     def make_empty(cls):
         return cls(root={})
 
+    @override
     def add_new_pipe(self, pipe: PipeAbstract):
-        name = pipe.code
-        pipe.inputs.set_default_domain(domain=pipe.domain)
-        if pipe.output_concept_code and "." not in pipe.output_concept_code:
-            pipe.output_concept_code = f"{pipe.domain}.{pipe.output_concept_code}"
-        if name in self.root:
-            raise PipeLibraryError(f"Pipe '{name}' already exists in the library")
+        if pipe.code in self.root:
+            raise PipeLibraryError(f"Pipe '{pipe.code}' already exists in the library")
         self.root[pipe.code] = pipe
 
+    @override
     def add_pipes(self, pipes: List[PipeAbstract]):
         for pipe in pipes:
             self.add_new_pipe(pipe=pipe)
@@ -53,8 +53,8 @@ class PipeLibrary(RootModel[PipeLibraryRoot], PipeProviderAbstract):
     def add_or_update_pipe(self, pipe: PipeAbstract):
         name = pipe.code
         pipe.inputs.set_default_domain(domain=pipe.domain)
-        if pipe.output_concept_code and "." not in pipe.output_concept_code:
-            pipe.output_concept_code = f"{pipe.domain}.{pipe.output_concept_code}"
+        if pipe.output.code and "." not in pipe.output.code:
+            pipe.output.code = f"{pipe.domain}.{pipe.output.code}"
         self.root[name] = pipe
 
     @override
@@ -121,9 +121,9 @@ class PipeLibrary(RootModel[PipeLibraryRoot], PipeProviderAbstract):
 
             for pipe in domain_pipes:
                 inputs = pipe.inputs
-                formatted_inputs = [f"{name}: {_format_concept_code(requirement.concept_code, domain)}" for name, requirement in inputs.items]
+                formatted_inputs = [f"{name}: {_format_concept_code(requirement.concept.code, domain)}" for name, requirement in inputs.items]
                 formatted_inputs_str = ", ".join(formatted_inputs)
-                output_code = _format_concept_code(pipe.output_concept_code, domain)
+                output_code = _format_concept_code(pipe.output.code, domain)
 
                 table.add_row(
                     pipe.code,
@@ -135,7 +135,7 @@ class PipeLibrary(RootModel[PipeLibraryRoot], PipeProviderAbstract):
                 pipes_dict[domain][pipe.code] = {
                     "definition": pipe.definition or "",
                     "inputs": formatted_inputs_str,
-                    "output": pipe.output_concept_code,
+                    "output": pipe.output.code,
                 }
 
             pretty_print(table)
