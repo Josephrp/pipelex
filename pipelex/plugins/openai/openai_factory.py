@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import openai
 from openai.types.chat import (
@@ -111,6 +111,57 @@ class OpenAIFactory:
 
         messages.append(ChatCompletionUserMessageParam(role="user", content=user_contents))
         return messages
+
+    @classmethod
+    def make_responses_input(
+        cls,
+        llm_job: LLMJob,
+        llm_engine: LLMEngine,
+    ) -> Dict[str, Any]:
+        """
+        Build the input payload for the OpenAI Responses API from our prompt and params.
+        This is compatible with the OpenAI tools/connectors quickstart when using responses.create.
+        """
+        llm_prompt = llm_job.llm_prompt
+        input_value: Any
+        if llm_prompt.user_text and not llm_prompt.user_images:
+            input_value = llm_prompt.user_text
+        else:
+            # Build simple multi-part input with text first, images ignored for now
+            parts: List[Dict[str, Any]] = []
+            if llm_prompt.user_text:
+                parts.append({"type": "input_text", "text": llm_prompt.user_text})
+            # Future: map PromptImage to Responses API input_image blocks
+            input_value = parts if parts else ""
+
+        payload: Dict[str, Any] = {
+            "model": llm_engine.llm_id,
+            "input": input_value,
+        }
+
+        params = llm_job.job_params
+        if params.max_tokens is not None:
+            payload["max_output_tokens"] = params.max_tokens
+        if params.seed is not None:
+            payload["seed"] = params.seed
+        # temperature is supported on some models under responses
+        payload["temperature"] = 1 if llm_engine.llm_model.llm_family.name.startswith("O_") else params.temperature
+
+        # System prompt as responses "instructions"
+        if llm_prompt.system_text:
+            payload["instructions"] = llm_prompt.system_text
+
+        # Tools / connectors
+        if params.openai_tools:
+            payload["tools"] = params.openai_tools
+        if params.openai_tool_choice is not None:
+            payload["tool_choice"] = params.openai_tool_choice
+        if params.openai_parallel_tool_calls is not None:
+            payload["parallel_tool_calls"] = params.openai_parallel_tool_calls
+        if params.openai_response_format is not None:
+            payload["response_format"] = params.openai_response_format
+
+        return payload
 
     @classmethod
     def make_openai_image_url(cls, prompt_image: PromptImage) -> ImageURL:

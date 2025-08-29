@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -13,6 +13,13 @@ class LLMJobParams(BaseModel):
     temperature: float = Field(..., ge=0, le=1)
     max_tokens: Optional[int] = Field(None, gt=0)
     seed: Optional[int] = Field(None, ge=0)
+    # OpenAI tools / connectors (Responses or Chat Completions tools)
+    openai_use_responses_api: bool = False
+    openai_tools: Optional[List[Dict[str, Any]]] = None
+    openai_tool_choice: Optional[Union[str, Dict[str, Any]]] = None
+    openai_parallel_tool_calls: Optional[bool] = None
+    openai_response_format: Optional[Dict[str, Any]] = None
+    openai_web_search_options: Optional[Dict[str, Any]] = None
 
 
 class LLMJobConfig(BaseModel):

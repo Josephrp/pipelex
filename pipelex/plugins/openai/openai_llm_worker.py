@@ -58,16 +58,26 @@ class OpenAILLMWorker(LLMWorkerInternalAbstract):
             llm_engine=self.llm_engine,
         )
 
+        # Optional OpenAI tools / connectors (chat.completions)
+        tools_param: Any = llm_job.job_params.openai_tools
+        tool_choice_param: Any = llm_job.job_params.openai_tool_choice
+        web_search_options_param: Any = llm_job.job_params.openai_web_search_options
+        parallel_tool_calls_param: Any = llm_job.job_params.openai_parallel_tool_calls
+
         try:
             match self.llm_engine.llm_model.llm_family:
                 case LLMFamily.O_SERIES | LLMFamily.GPT_5:
                     # for o1 models, we must use temperature=1, and tokens limit is named max_completion_tokens
-                    response = await self.openai_client_for_text.chat.completions.create(
+                    response: Any = await self.openai_client_for_text.chat.completions.create(
                         model=self.llm_engine.llm_id,
                         temperature=1,
                         max_completion_tokens=llm_job.job_params.max_tokens or NOT_GIVEN,
                         seed=llm_job.job_params.seed,
                         messages=messages,
+                        tools=tools_param or NOT_GIVEN,
+                        tool_choice=tool_choice_param or NOT_GIVEN,
+                        parallel_tool_calls=parallel_tool_calls_param or NOT_GIVEN,
+                        web_search_options=web_search_options_param or NOT_GIVEN,
                     )
                 case LLMFamily.GEMINI:
                     # for gemini models, we multiply the temperature by 2 because the range is 0-2
@@ -77,6 +87,10 @@ class OpenAILLMWorker(LLMWorkerInternalAbstract):
                         max_tokens=llm_job.job_params.max_tokens or NOT_GIVEN,
                         seed=llm_job.job_params.seed,
                         messages=messages,
+                        tools=tools_param or NOT_GIVEN,
+                        tool_choice=tool_choice_param or NOT_GIVEN,
+                        parallel_tool_calls=parallel_tool_calls_param or NOT_GIVEN,
+                        web_search_options=web_search_options_param or NOT_GIVEN,
                     )
                 case (
                     LLMFamily.GPT_4
@@ -102,6 +116,10 @@ class OpenAILLMWorker(LLMWorkerInternalAbstract):
                         max_tokens=llm_job.job_params.max_tokens or NOT_GIVEN,
                         seed=llm_job.job_params.seed,
                         messages=messages,
+                        tools=tools_param or NOT_GIVEN,
+                        tool_choice=tool_choice_param or NOT_GIVEN,
+                        parallel_tool_calls=parallel_tool_calls_param or NOT_GIVEN,
+                        web_search_options=web_search_options_param or NOT_GIVEN,
                     )
                 case (
                     LLMFamily.CLAUDE_3
