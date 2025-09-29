@@ -13,14 +13,14 @@ The `PipeCondition` controller adds branching logic to your pipelines. It evalua
 
 ## Configuration
 
-`PipeCondition` is configured in your pipeline's `.toml` file.
+`PipeCondition` is configured in your pipeline's `.plx` file.
 
-### TOML Parameters
+### PLX Parameters
 
 | Parameter                      | Type           | Description                                                                                                                                              | Required                       |
 | ------------------------------ | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
 | `type`                         | string         | The type of the pipe: `PipeCondition`                                                                          | Yes                            |
-| `description`                  | string         | A description of the condition operation.                                                                          | Yes                            |
+| `definition`                   | string         | A description of the condition operation.                                                                          | Yes                            |
 | `inputs`                       | dictionary     | The input concept(s) for the condition, as a dictionary mapping input names to concept codes.                                                     | Yes                            |
 | `output`                       | string         | The output concept produced by the selected pipe.                                                | Yes                            |
 | `expression`                   | string         | A simple Jinja2 expression. `{{ ... }}` are automatically added. Good for simple variable access like `"my_var.category"`.                                | Yes (or `expression_template`)   |
@@ -36,7 +36,7 @@ The `PipeCondition` controller adds branching logic to your pipelines. It evalua
 
 Here's a basic example showing how PipeCondition routes based on input data:
 
-```toml
+```plx
 domain = "routing_example"
 definition = "Example of PipeCondition routing"
 
@@ -46,7 +46,7 @@ CategoryInput = "Input with a category field"
 # Define the PipeCondition first
 [pipe.route_by_category]
 type = "PipeCondition"
-description = "Route based on category field"
+definition = "Route based on category field"
 inputs = { input_data = "CategoryInput" }
 output = "native.Text"
 expression = "input_data.category"
@@ -59,7 +59,7 @@ large = "process_large"
 # Define the pipes that PipeCondition can route to
 [pipe.process_small]
 type = "PipeLLM"
-description = "Handle small category"
+definition = "Handle small category"
 output = "native.Text"
 prompt_template = """
 Output this only: "small"
@@ -67,7 +67,7 @@ Output this only: "small"
 
 [pipe.process_medium]
 type = "PipeLLM"
-description = "Handle medium category"
+definition = "Handle medium category"
 output = "native.Text"
 prompt_template = """
 Output this only: "medium"
@@ -75,7 +75,7 @@ Output this only: "medium"
 
 [pipe.process_large]
 type = "PipeLLM"
-description = "Handle large category"
+definition = "Handle large category"
 output = "native.Text"
 prompt_template = """
 Output this only: "large"
@@ -91,10 +91,10 @@ How this works:
 
 ### Example: Routing with default fallback
 
-```toml
+```plx
 [pipe.route_with_fallback]
 type = "PipeCondition"
-description = "Route with default handling"
+definition = "Route with default handling"
 inputs = { classification = "DocumentType" }
 output = "ProcessedDocument"
 expression = "classification.type"
@@ -106,7 +106,7 @@ receipt = "process_receipt"
 
 [pipe.process_invoice]
 type = "PipeLLM"
-description = "Process invoice documents"
+definition = "Process invoice documents"
 inputs = { classification = "DocumentType" }
 output = "ProcessedDocument"
 prompt_template = """
@@ -115,7 +115,7 @@ Process this invoice document...
 
 [pipe.process_receipt]
 type = "PipeLLM"
-description = "Process receipt documents" 
+definition = "Process receipt documents" 
 inputs = { classification = "DocumentType" }
 output = "ProcessedDocument"
 prompt_template = """
@@ -124,7 +124,7 @@ Process this receipt document...
 
 [pipe.process_unknown]
 type = "PipeLLM"
-description = "Handle unknown document types"
+definition = "Handle unknown document types"
 inputs = { classification = "DocumentType" }
 output = "ProcessedDocument"
 prompt_template = """
@@ -135,7 +135,7 @@ Process this unknown document type...
 ## Expression Types
 
 ### Simple Expression
-```toml
+```plx
 expression = "input_data.category"
 ```
 
@@ -145,7 +145,7 @@ expression = "input_data.category"
 - Access to Jinja2 filters and functions
 
 ### Complex Expression  
-```toml
+```plx
 expression_template = "{% if input_data.score >= 70 %}high{% else %}low{% endif %}"
 ```
 
@@ -164,7 +164,7 @@ default_pipe_code = "process_unknown"
 - Fallback pipe when no match is found
 
 ### Expression Aliasing
-```toml
+```plx
 add_alias_from_expression_to = "category_type"
 ```
 

@@ -12,14 +12,14 @@ A `PipeSequence` defines a list of `steps`. Each step calls another pipe and giv
 
 ## Configuration
 
-`PipeSequence` is configured in your pipeline's `.toml` file.
+`PipeSequence` is configured in your pipeline's `.plx` file.
 
-### TOML Parameters
+### PLX Parameters
 
 | Parameter  | Type            | Description                                                                                                    | Required |
 | ---------- | --------------- | -------------------------------------------------------------------------------------------------------------- | -------- |
 | `type`      | string          | The type of the pipe: `PipeSequence`                                                                          | Yes      |
-| `description` | string          | A description of the sequence operation.                                                                          | Yes      |
+| `definition` | string          | A description of the sequence operation.                                                                          | Yes      |
 | `inputs`    | dictionary  | The input concept(s) for the *first* pipe in the sequence, as a dictionary mapping input names to concept codes.                                                     | No       |
 | `output`   | string          | The output concept produced by the *last* pipe in the sequence.                                                | Yes      |
 | `steps`    | array of tables | An ordered list of the pipes to execute. Each table in the array defines a single step.                          | Yes      |
@@ -39,28 +39,29 @@ Each entry in the `steps` array is a table with the following keys:
 
 Let's imagine a pipeline that first extracts text from an image, then summarizes that text, and finally translates the summary into French.
 
-```toml
+```plx
 [pipe.extract_text_from_image]
 type = "PipeOcr"
-description = "Extract text from an image"
+definition = "Extract text from an image"
 output = "Text"
+ocr_model = "mistral-ocr"
 
 [pipe.summarize_text]
 type = "PipeLLM"
-description = "Summarize text"
+definition = "Summarize text"
 inputs = { text = "Text" }
 output = "Text"
 
 [pipe.translate_to_french]
 type = "PipeLLM"
-description = "Translate text to French"
+definition = "Translate text to French"
 inputs = { text = "Text" }
 output = "Text"
 
 
 [pipe.image_to_french_summary]
 type = "PipeSequence"
-description = "Extract, summarize, and translate text from an image"
+definition = "Extract, summarize, and translate text from an image"
 inputs = { image = "source.Image" }
 output = "target.FrenchText"
 steps = [

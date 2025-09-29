@@ -45,12 +45,14 @@ make install                  - Create local virtualenv & install all dependenci
 make update                   - Upgrade dependencies via uv
 make validate                 - Run the setup sequence to validate the config and libraries
 make build                    - Build the wheels
-make doc                      - Serve documentation locally with mkdocs
 
 make format                   - format with ruff format
 make lint                     - lint with ruff check
 make pyright                  - Check types with pyright
 make mypy                     - Check types with mypy
+
+make config-template          - Update config template from .pipelex/
+make cft                      - Shorthand -> config-template
 
 make cleanenv                 - Remove virtual env and lock files
 make cleanderived             - Remove extraneous compiled files, caches, logs, etc.
@@ -85,7 +87,7 @@ make fix-unused-imports       - Fix unused imports with ruff
 make fui                      - Shorthand -> fix-unused-imports
 make check-TODOs              - Check for TODOs
 
-make docs                     - Serve documentation with mkdocs
+make docs                     - Serve documentation locally with mkdocs
 make docs-check               - Check documentation build with mkdocs
 make docs-deploy              - Deploy documentation with mkdocs
 
@@ -106,7 +108,8 @@ export HELP
 	run-all-tests run-manual-trigger-gha-tests run-gha_disabled-tests \
 	validate v check c cc \
 	merge-check-ruff-lint merge-check-ruff-format merge-check-mypy merge-check-pyright \
-	li check-unused-imports fix-unused-imports check-uv check-TODOs docs docs-check docs-deploy
+	li check-unused-imports fix-unused-imports check-uv check-TODOs docs docs-check docs-deploy \
+	config-template cft
 
 all help:
 	@echo "$$HELP"
@@ -160,6 +163,14 @@ build: env
 	$(call PRINT_TITLE,"Building the wheels")
 	@uv build
 
+config-template:
+	$(call PRINT_TITLE,"Updating config template from .pipelex/")
+	@rm -rf pipelex/config_template/*
+	@cp -r .pipelex/* pipelex/config_template/
+
+cft: config-template
+	@echo "> done: cft = config-template"
+
 ##############################################################################################
 ############################      Cleaning                        ############################
 ##############################################################################################
@@ -189,7 +200,12 @@ cleanlibraries:
 	@find . -type d -wholename './pipelex_libraries' -exec rm -rf {} + && \
 	echo "Cleaned up pipelex_libraries";
 
-cleanall: cleanderived cleanenv cleanlibraries
+cleanconfig:
+	$(call PRINT_TITLE,"Erasing config files and directories")
+	@find . -type d -wholename './.pipelex' -exec rm -rf {} + && \
+	echo "Cleaned up .pipelex";
+
+cleanall: cleanderived cleanenv cleanlibraries cleanconfig
 	@echo "Cleaned up all derived files and directories";
 
 ##########################################################################################

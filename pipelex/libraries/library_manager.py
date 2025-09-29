@@ -1,11 +1,11 @@
 import os
 from pathlib import Path
-from typing import Any, ClassVar, Dict, List, Optional, Type
+from typing import ClassVar, List, Optional, Type
 
+from pydantic import ValidationError
 from typing_extensions import override
 
 from pipelex import log
-from pipelex.cogt.llm.llm_models.llm_deck import LLMDeck
 from pipelex.config import get_config
 from pipelex.core.bundles.pipelex_bundle_blueprint import PipelexBundleBlueprint
 from pipelex.core.concepts.concept import Concept
@@ -23,20 +23,18 @@ from pipelex.core.pipes.pipe_library import PipeLibrary
 from pipelex.exceptions import (
     ConceptLibraryError,
     LibraryError,
+    PipelexSetupError,
     PipeLibraryError,
 )
 from pipelex.libraries.library_config import LibraryConfig
 from pipelex.libraries.library_manager_abstract import LibraryManagerAbstract
 from pipelex.tools.class_registry_utils import ClassRegistryUtils
+from pipelex.tools.func_registry_utils import FuncRegistryUtils
 from pipelex.tools.misc.file_utils import find_files_in_dir
-from pipelex.tools.misc.json_utils import deep_update
-from pipelex.tools.misc.toml_utils import TOMLValidationError, load_toml_from_path, validate_toml_file
+from pipelex.tools.misc.toml_utils import TOMLValidationError, validate_toml_file
 from pipelex.tools.runtime_manager import runtime_manager
+from pipelex.tools.typing.pydantic_utils import format_pydantic_validation_error
 from pipelex.types import StrEnum
-
-
-class LLMDeckNotFoundError(LibraryError):
-    pass
 
 
 class LibraryComponent(StrEnum):
@@ -72,17 +70,11 @@ class LibraryManager(LibraryManagerAbstract):
         self.concept_library = concept_library
         self.pipe_library = pipe_library
         self.library_config = library_config
-        self.llm_deck: Optional[LLMDeck] = None
 
     @override
     def validate_libraries(self):
         log.debug("LibraryManager validating libraries")
 
-        if self.llm_deck is None:
-            raise LibraryError("LLM deck is not loaded")
-
-        self.llm_deck.validate_llm_presets()
-        LLMDeck.final_validate(deck=self.llm_deck)
         self.concept_library.validate_with_libraries()
         self.pipe_library.validate_with_libraries()
         self.domain_library.validate_with_libraries()
@@ -91,16 +83,6 @@ class LibraryManager(LibraryManagerAbstract):
         """Validate all TOML files used by the library manager for formatting issues."""
         log.debug("LibraryManager validating TOML file formatting")
 
-        # Validation of LLM deck paths
-        llm_deck_paths = self.library_config.get_llm_deck_paths()
-        for llm_deck_path in llm_deck_paths:
-            if os.path.exists(llm_deck_path):
-                try:
-                    validate_toml_file(llm_deck_path)
-                except TOMLValidationError as exc:
-                    log.error(f"TOML formatting issues in LLM deck file '{llm_deck_path}': {exc}")
-                    raise LibraryError(f"TOML validation failed for LLM deck file '{llm_deck_path}': {exc}") from exc
-
         # Validation of template paths
         template_paths = self.library_config.get_templates_paths()
         for template_path in template_paths:
@@ -108,8 +90,8 @@ class LibraryManager(LibraryManagerAbstract):
                 try:
                     validate_toml_file(template_path)
                 except TOMLValidationError as exc:
-                    log.error(f"TOML formatting issues in template file '{template_path}': {exc}")
-                    raise LibraryError(f"TOML validation failed for template file '{template_path}': {exc}") from exc
+                    log.error(f"PLX formatting issues in template file '{template_path}': {exc}")
+                    raise LibraryError(f"PLX validation failed for template file '{template_path}': {exc}") from exc
 
     @override
     def setup(self) -> None:
@@ -117,7 +99,6 @@ class LibraryManager(LibraryManagerAbstract):
 
     @override
     def teardown(self) -> None:
-        self.llm_deck = None
         self.pipe_library.teardown()
         self.concept_library.teardown()
         self.domain_library.teardown()
@@ -134,37 +115,37 @@ class LibraryManager(LibraryManagerAbstract):
             library_dirs += [Path(self.library_config.test_pipelines_dir_path)]
         return library_dirs
 
-    def _get_pipelex_toml_files_from_dirs(self, dirs: List[Path]) -> List[Path]:
-        """Get all valid Pipelex TOML files from the given directories."""
+    def _get_pipelex_plx_files_from_dirs(self, dirs: List[Path]) -> List[Path]:
+        """Get all valid Pipelex PLX files from the given directories."""
 
-        all_toml_paths: List[Path] = []
+        all_plx_paths: List[Path] = []
         for dir_path in dirs:
             if not dir_path.exists():
                 raise LibraryError(f"Directory does not exist: {dir_path}")
 
             # Find all TOML files in the directory
-            toml_files = find_files_in_dir(
+            plx_files = find_files_in_dir(
                 dir_path=str(dir_path),
-                pattern="*.toml",
+                pattern="*.plx",
                 is_recursive=True,
             )
 
             # Filter to only include valid Pipelex files
-            for toml_file in toml_files:
-                if PipelexInterpreter.is_pipelex_file(toml_file):
-                    all_toml_paths.append(toml_file)
+            for plx_file in plx_files:
+                if PipelexInterpreter.is_pipelex_file(plx_file):
+                    all_plx_paths.append(plx_file)
                 else:
-                    log.debug(f"Skipping non-Pipelex TOML file: {toml_file}")
+                    log.debug(f"Skipping non-Pipelex PLX file: {plx_file}")
 
-        return all_toml_paths
+        return all_plx_paths
 
     @override
-    def load_from_file(self, toml_path: Path) -> None:
+    def load_from_file(self, plx_path: Path) -> None:
         """Load a single file - this method is kept for compatibility."""
-        if not PipelexInterpreter.is_pipelex_file(toml_path):
-            raise LibraryError(f"File is not a valid Pipelex TOML file: {toml_path}")
+        if not PipelexInterpreter.is_pipelex_file(plx_path):
+            raise LibraryError(f"File is not a valid Pipelex PLX file: {plx_path}")
 
-        blueprint = PipelexInterpreter(file_path=toml_path).make_pipelex_bundle_blueprint()
+        blueprint = PipelexInterpreter(file_path=plx_path).make_pipelex_bundle_blueprint()
         self.load_from_blueprint(blueprint)
 
     @override
@@ -228,14 +209,18 @@ class LibraryManager(LibraryManagerAbstract):
         return pipes
 
     @override
-    def load_libraries(self, library_dirs: Optional[List[Path]] = None, library_file_paths: Optional[List[Path]] = None) -> None:
+    def load_libraries(
+        self,
+        library_dirs: Optional[List[Path]] = None,
+        library_file_paths: Optional[List[Path]] = None,
+    ) -> None:
         dirs_to_use: List[Path] = self._get_pipeline_library_dirs()
-        all_toml_paths: List[Path] = self._get_pipelex_toml_files_from_dirs(dirs_to_use)
+        all_plx_paths: List[Path] = self._get_pipelex_plx_files_from_dirs(dirs_to_use)
 
         # Remove failing pipelines from the list
         failing_pipelines_file_paths = get_config().pipelex.library_config.failing_pipelines_file_paths
         failing_paths_set = {Path(fp) for fp in failing_pipelines_file_paths}
-        all_toml_paths = [path for path in all_toml_paths if path not in failing_paths_set]
+        all_plx_paths = [path for path in all_plx_paths if path not in failing_paths_set]
 
         if library_dirs is not None:
             dirs_to_use = library_dirs
@@ -243,14 +228,21 @@ class LibraryManager(LibraryManagerAbstract):
         # Register classes in the directories
         for library_dir in dirs_to_use:
             ClassRegistryUtils.register_classes_in_folder(folder_path=str(library_dir))
+            FuncRegistryUtils.register_funcs_in_folder(folder_path=str(library_dir))
 
         if library_file_paths is not None:
-            all_toml_paths = library_file_paths
+            all_plx_paths = library_file_paths
 
         # Parse all blueprints first
         blueprints: List[PipelexBundleBlueprint] = []
-        for toml_file_path in all_toml_paths:
-            blueprint = PipelexInterpreter(file_path=toml_file_path).make_pipelex_bundle_blueprint()
+        for plx_file_path in all_plx_paths:
+            try:
+                blueprint = PipelexInterpreter(file_path=plx_file_path).make_pipelex_bundle_blueprint()
+            except FileNotFoundError as exc:
+                raise PipelexSetupError(f"Could not find PLX blueprint at '{plx_file_path}'") from exc
+            except ValidationError as exc:
+                error_msg = format_pydantic_validation_error(exc)
+                raise PipelexSetupError(f"Could not load PLX blueprint from '{plx_file_path}' because of: {error_msg}") from exc
             blueprints.append(blueprint)
 
         # Load all domains first
@@ -274,24 +266,3 @@ class LibraryManager(LibraryManagerAbstract):
             pipes = self._load_pipes_from_blueprint(blueprint)
             all_pipes.extend(pipes)
         self.pipe_library.add_pipes(pipes=all_pipes)
-
-    # TODO: move to LLMDeckManager
-    def load_deck(self) -> LLMDeck:
-        llm_deck_paths = self.library_config.get_llm_deck_paths()
-        full_llm_deck_dict: Dict[str, Any] = {}
-        if not llm_deck_paths:
-            raise LLMDeckNotFoundError("No LLM deck paths found. Please run `pipelex init-libraries` to create it.")
-
-        for llm_deck_path in llm_deck_paths:
-            if not os.path.exists(llm_deck_path):
-                raise LLMDeckNotFoundError(f"LLM deck path `{llm_deck_path}` not found. Please run `pipelex init-libraries` to create it.")
-            try:
-                llm_deck_dict = load_toml_from_path(path=llm_deck_path)
-                log.debug(f"Loaded LLM deck from {llm_deck_path}")
-                deep_update(full_llm_deck_dict, llm_deck_dict)
-            except Exception as exc:
-                log.error(f"Failed to load LLM deck file '{llm_deck_path}': {exc}")
-                raise
-
-        self.llm_deck = LLMDeck.model_validate(full_llm_deck_dict)
-        return self.llm_deck

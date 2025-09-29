@@ -21,10 +21,10 @@ For structured data output, `PipeLLM` employs two main strategies:
 
 Images must be declared in the `inputs` section of your pipe definition. The image will be automatically passed to the VLM along with your text prompt.
 
-```toml
+```plx
 [pipe.describe_image]
 type = "PipeLLM"
-description = "Describe an image"
+definition = "Describe an image"
 inputs = { image = "Image" }
 output = "VisualDescription"
 prompt_template = """
@@ -38,10 +38,10 @@ Describe the provided image in great detail.
 
 You can use any concept that refines `Image` as an input, and choose descriptive variable names that fit your use case:
 
-```toml
+```plx
 [pipe.analyze_wedding]
 type = "PipeLLM"
-description = "Analyze wedding photo"
+definition = "Analyze wedding photo"
 inputs = { wedding_photo = "images.Photo" }
 output = "PhotoAnalysis"
 prompt_template = """
@@ -53,10 +53,10 @@ Analyze this wedding photo and describe the key moments captured.
 
 When working with structured content that contains image fields (like `PageContent` which has a `page_view` field), you need to specify the full path to the image attribute in the `inputs` section:
 
-```toml
+```plx
 [pipe.analyze_page_view]
 type = "PipeLLM"
-description = "Analyze the visual layout of a page"
+definition = "Analyze the visual layout of a page"
 inputs = { "page_content.page_view" = "Image" }
 output = "LayoutAnalysis"
 prompt_template = """
@@ -74,10 +74,10 @@ In this example:
 
 You can include multiple images in a single prompt by listing them in the inputs:
 
-```toml
+```plx
 [pipe.compare_images]
 type = "PipeLLM"
-description = "Compare two images"
+definition = "Compare two images"
 inputs = { 
     first_image = "Image",
     second_image = "Image"
@@ -92,10 +92,10 @@ Compare these two images and describe their similarities and differences.
 
 You can mix any stuff and image inputs in the same pipe:
 
-```toml
+```plx
 [pipe.analyze_document_with_context]
 type = "PipeLLM"
-description = "Analyze a document page with additional context"
+definition = "Analyze a document page with additional context"
 inputs = { 
     context = "Text",
     document.page_view = "Image"
@@ -110,15 +110,15 @@ Analyze the document page shown in the image and explain how it relates to the p
 
 ## Configuration
 
-`PipeLLM` is configured in your pipeline's `.toml` file.
+`PipeLLM` is configured in your pipeline's `.plx` file.
 
-### TOML Parameters
+### PLX Parameters
 
 | Parameter                   | Type                | Description                                                                                                                                                                  | Required |
 | --------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
 | `type`                      | string              | The type of the pipe: `PipeLLM`                                                                          | Yes      |
-| `description`               | string              | A description of the LLM operation.                                                                           | Yes      |
-| `inputs`                    | dictionary          | The input concept(s) for the LLM operation, as a dictionary mapping input names to concept codes. For images within structured content, use dot notation (e.g., `"page.image"`).                                                     | Yes       |
+| `definition`               | string              | A description of the LLM operation.                                                                           | Yes      |
+| `inputs`                    | dictionary          | The input concept(s) for the LLM operation, as a dictionary mapping input names to concept codes. For images within structured content, use dot notation (e.g., `"page.image_argurment"`)
 | `output`                    | string              | The output concept produced by the LLM operation.                                                | Yes      |
 | `llm`                       | string or table     | Specifies the LLM preset(s) to use. Can be a single preset or a table mapping different presets for different generation modes (e.g., `main`, `object_direct`).              | No       |
 | `system_prompt`             | string              | A system-level prompt to guide the LLM's behavior (e.g., "You are a helpful assistant"). Can be inline text or a reference to a template file (`"file:path/to/prompt.md"`).  | No       |
@@ -146,10 +146,10 @@ Analyze the document page shown in the image and explain how it relates to the p
 
 This pipe takes no input and writes a poem.
 
-```toml
+```plx
 [pipe.write_poem]
 type = "PipeLLM"
-description = "Write a short poem"
+definition = "Write a short poem"
 output = "Text"
 llm = "llm_for_creative_writing"
 prompt = """
@@ -161,10 +161,10 @@ Write a four-line poem about pipes.
 
 This pipe summarizes an input text, using a `prompt_template` to inject the input.
 
-```toml
+```plx
 [pipe.summarize_text]
 type = "PipeLLM"
-description = "Summarize a text"
+definition = "Summarize a text"
 inputs = { text = "TextToSummarize" }
 output = "TextSummary"
 prompt_template = """
@@ -180,10 +180,10 @@ The summary should be no longer than 3 sentences.
 
 This pipe takes an image of a table and uses a VLM to extract the content as an HTML table.
 
-```toml
+```plx
 [pipe.extract_table_from_image]
 type = "PipeLLM"
-description = "Extract table data from an image"
+definition = "Extract table data from an image"
 inputs = { image = "TableScreenshot" }
 output = "TableData"
 prompt_template = """
@@ -195,13 +195,13 @@ Extract the table data from this image and format it as a structured table.
 
 This pipe extracts a list of `Expense` items from a block of text.
 
-```toml
+```plx
 [concept.Expense]
 structure = "Expense" # Assumes a Pydantic model 'Expense' is defined
 
 [pipe.process_expense_report]
 type = "PipeLLM"
-description = "Process an expense report"
+definition = "Process an expense report"
 inputs = { report = "ExpenseReport" }
 output = "ProcessedExpenseReport"
 prompt_template = """

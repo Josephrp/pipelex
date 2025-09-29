@@ -1,5 +1,4 @@
 import pytest
-from rich import print
 from rich.console import Console
 from rich.traceback import Traceback
 

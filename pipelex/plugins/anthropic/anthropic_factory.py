@@ -21,32 +21,44 @@ from pipelex.cogt.image.prompt_image import (
     PromptImageTypedBytesOrUrl,
     PromptImageUrl,
 )
+from pipelex.cogt.image.prompt_image_factory import PromptImageFactory
 from pipelex.cogt.llm.llm_job import LLMJob
-from pipelex.cogt.llm.llm_models.llm_platform import LLMPlatform
-from pipelex.cogt.llm.token_category import NbTokensByCategoryDict, TokenCategory
+from pipelex.cogt.model_backends.backend import InferenceBackend
+from pipelex.cogt.usage.token_category import NbTokensByCategoryDict, TokenCategory
 from pipelex.config import get_config
-from pipelex.hub import get_plugin_manager, get_secrets_provider
-from pipelex.tools.misc.base_64_utils import (
-    load_binary_as_base64_async,
-)
+from pipelex.plugins.plugin_sdk_registry import Plugin
+from pipelex.tools.misc.base_64_utils import load_binary_as_base64_async
+from pipelex.tools.misc.filetype_utils import detect_file_type_from_base64
+from pipelex.types import StrEnum
 
 
 class AnthropicFactoryError(CogtError):
     pass
 
 
+class AnthropicSdkVariant(StrEnum):
+    ANTHROPIC = "anthropic"
+    BEDROCK_ANTHROPIC = "bedrock_anthropic"
+
+
 class AnthropicFactory:
     @staticmethod
     def make_anthropic_client(
-        llm_platform: LLMPlatform,
+        plugin: Plugin,
+        backend: InferenceBackend,
     ) -> Union[AsyncAnthropic, AsyncAnthropicBedrock]:
-        # TODO: also support Anthropic with VertexAI
-        match llm_platform:
-            case LLMPlatform.ANTHROPIC:
-                anthropic_config = get_plugin_manager().plugin_configs.anthropic_config
-                api_key = anthropic_config.get_api_key(secrets_provider=get_secrets_provider())
-                return AsyncAnthropic(api_key=api_key)
-            case LLMPlatform.BEDROCK_ANTHROPIC:
+        try:
+            sdk_variant = AnthropicSdkVariant(plugin.sdk)
+        except ValueError:
+            raise AnthropicFactoryError(f"Plugin '{plugin}' is not supported by AnthropicFactory")
+
+        match sdk_variant:
+            case AnthropicSdkVariant.ANTHROPIC:
+                return AsyncAnthropic(
+                    api_key=backend.api_key,
+                    base_url=backend.endpoint,
+                )
+            case AnthropicSdkVariant.BEDROCK_ANTHROPIC:
                 aws_config = get_config().pipelex.aws_config
                 aws_access_key_id, aws_secret_access_key, aws_region = aws_config.get_aws_access_keys()
                 return AsyncAnthropicBedrock(
@@ -54,8 +66,6 @@ class AnthropicFactory:
                     aws_access_key=aws_access_key_id,
                     aws_region=aws_region,
                 )
-            case _:
-                raise AnthropicFactoryError(f"Unsupported LLM platform for Anthropic sdk: '{llm_platform}'")
 
     @classmethod
     async def make_user_message(
@@ -166,7 +176,9 @@ class AnthropicFactory:
         if isinstance(prompt_image, PromptImageBytes):
             typed_bytes_or_url = prompt_image.make_prompt_image_typed_bytes()
         elif isinstance(prompt_image, PromptImageUrl):
-            typed_bytes_or_url = prompt_image.url
+            image_bytes = await PromptImageFactory().make_promptimagebytes_from_url_async(prompt_image)
+            file_type = detect_file_type_from_base64(image_bytes.base_64)
+            typed_bytes_or_url = PromptImageTypedBytes(base_64=image_bytes.base_64, file_type=file_type)
         elif isinstance(prompt_image, PromptImagePath):
             b64 = await load_binary_as_base64_async(prompt_image.file_path)
             typed_bytes_or_url = PromptImageTypedBytes(base_64=b64, file_type=prompt_image.get_file_type())

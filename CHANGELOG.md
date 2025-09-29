@@ -1,5 +1,166 @@
 # Changelog
 
+## [v0.10.2] - 2025-09-18
+
+### Added
+
+- Unified OCR system using model handles instead of separate OcrHandle enum
+- ModelType enum supporting LLM and TEXT_EXTRACTOR types  
+- Enhanced error handling in library loading with better validation messages
+- Config template management with `config-template` and `cft` Makefile targets to update templates from the `.pipelex/` directory
+
+### Changed
+
+- ⚠️ Breaking changes:
+  - Renamed `ocr_handle` to `ocr_model` in `PipeOcr` blueprint, so you'll need to update your PLX code accordingly
+  - Updated .env.example file with slightly modified key names (more standard).
+- OCR system now uses InferenceModelSpec with unified model handles
+- Renamed `get_llm_deck()` to `get_model_deck()` and updated parameter names from `llm_handle` to `model_handle`
+- Simplified OCR worker factory using plugin SDK matching
+- Enhanced plugin system compatibility with InferenceModelSpec
+- Improved error messages throughout system
+- Improved management of placeholder environment variables for unit tests
+
+### Removed
+
+- Legacy OCR classes: OcrHandle, OcrPlatform, OcrEngine, OcrEngineFactory
+- Obsolete configuration fields and setup methods
+- PipelexFileError exception class
+
+
+## [v0.10.1] - 2025-09-17
+
+### Changed
+
+- Enabled all backends, still required to pass all unit tests.
+- A few tweaks to the base model deck.
+
+## [v0.10.0] - 2025-09-17
+
+### Highlight: New Inference Backend Configuration System
+
+We've completely redesigned how LLMs are configured and accessed in Pipelex, making it more flexible and easier to get started:
+
+- **Get started in seconds** with [Pipelex Inference](pages/configuration/config-technical/inference-backend-config.md#pipelex-inference): Use a single API key to access all major LLM providers (OpenAI, Anthropic, Google, Mistral, and more)
+- **Flexible backend configuration**: Configure multiple inference backends (Azure OpenAI, AWS Bedrock, Vertex AI, etc.) through simple TOML files in `.pipelex/inference/`
+- **Smart model routing**: Automatically route models to the right backend using [routing profiles](pages/configuration/config-technical/inference-backend-config.md#routing-profiles) with pattern matching
+- **User-friendly aliases**: Define shortcuts like `best-claude` → `claude-4.1-opus` with optional fallback chains
+- **Cost-aware model specs**: Each model includes detailed pricing, capabilities, and constraints for better cost management
+
+For complete details, see the [Inference Backend Configuration](pages/configuration/config-technical/inference-backend-config.md) documentation.
+
+### Added
+
+- New inference backend configuration system in `.pipelex/inference/` directory
+- Support for 10+ inference backends: OpenAI, Anthropic, Azure OpenAI, AWS Bedrock, Mistral, Vertex AI, XAI, BlackboxAI, Perplexity, Ollama, and **Pipelex Inference**
+- Model routing profiles with pattern matching (`*model*`, `model*`, `*model`)
+- Model aliases with waterfall fallback chains
+- Environment variable and secret substitution in TOML configs (`${VAR}` and `${secret:KEY}`)
+- Comprehensive model specifications with detailed cost categories
+- Unified plugin SDK registry for all backends
+- CI environment detection with automatic placeholder API keys for testing
+- Improved `pipelex init config` command to copy entire configuration template directory structure to `.pipelex/` with smart file handling (skips existing files, shows clear progress messages)
+- Added `FuncRegistryUtils` to register functions in a pipelex folder that have a specific signature.
+- Added `mistral-medium` and `mistral-medium-2508` to the Mistral backend configuration.
+- Added `gemini-2.5-flash` to the VertexAI backend configuration.
+
+### Changed
+
+- LLM configuration moved from `pipelex_libraries/llm_deck/` to `.pipelex/inference/deck/`
+- LLM handles simplified to direct model names or user-defined aliases
+- Model deck completely redesigned with inference models, aliases, and presets
+- Plugin system refactored to use backend-specific TOML configuration
+- Token categories renamed to cost categories with expanded types
+
+### Fixed
+
+- Improved error messages for missing environment variables
+- Enhanced TOML configuration validation
+- More robust model routing and backend selection
+
+### Removed
+
+- Legacy LLM model library system (`llm_integrations/` directory)
+- Platform-specific configuration classes (AnthropicConfig, OpenAIConfig, etc.)
+- Deprecated LLM engine blueprint and factory classes
+- Old LLM platform and family enumerations
+
+### Security
+
+- Enhanced secret management with secure fallback patterns
+- Improved API key handling through centralized backend configuration
+
+## [v0.9.5] - 2025-09-12
+
+### Highlight
+ - Pinned `instructor` to version `<1.10.0` to avoid errors with `mypy`
+
+### Added
+ - Added `PIPELEX_INFERENCE` LLM family enum value
+ - Added support for `PIPELEX_INFERENCE` in OpenAI LLM worker
+ - Added Azure OpenAI platform support for Grok models (`grok-3` and `grok-3-mini`)
+ - Added debug logging for `PipeParallel` output contents
+ - Added `TOML` file filtering in LLM model library loading
+ - Added error handling for Unicode decode errors in LLM model library
+ - Added new test model configurations for `pipelex` and `vertex_ai` platforms
+
+### Changed
+ - Improved error messages in `StuffFactory` to include concept code and stuff name
+ - Disabled `is_gen_object_supported` for all Grok models (`grok-3`, `grok-3-mini`, `grok-3-fast`)
+ - Updated test configurations to use different LLM models and platforms
+ - Modified `Jinja2` filter to use default `TagStyle.TICKS` instead of raising error
+ - Added proper error handling for Unicode decode errors when loading model libraries
+ - Improved error handling in Anthropic plugin tests with specific `AuthenticationError` handling
+ - Image handling in `AnthropicFactory` now converts image URLs to `base64` data URLs with proper MIME type prefix
+ - Put back Discord link in `README.md`
+
+### Fixed
+ - Pinned `instructor` to version `<1.10.0` to avoid errors with `mypy`
+
+## [v0.9.4] - 2025-09-06
+
+### Added
+
+- Added support for BlackboxAI models
+
+## [v0.9.3] - 2025-09-06
+
+### Added
+
+ - Better support for BlackboxAI IDE
+ - VS Code extensions recommendations file with Pipelex, Ruff, and MyPy extensions
+ - File association for .plx files in VS Code settings
+
+## [v0.9.2] - 2025-09-05
+
+### Fixed
+
+- Fix the rules of all agents.
+
+### Added
+
+- Added agent rule for copilot
+- Added a rule to forbidden structuring basic text concepts
+
+## [v0.9.1] - 2025-09-05
+
+### Fixed
+- Fixed many inconsistencies in the documentation.
+
+## [v0.9.0] - 2025-09-02
+
+### Refacto
+
+- Changed the pipeline file extension from `.toml` to `.plx`: Updated the LibraryManager in consequence.
+
+## Fixed
+
+- Fixed the `structuring_method` behavior in the `PipeLLM` pipe: Putting it to `preliminary_text`, the `PipeLLM` will always generate text before generating the structure -> Reliability increased by a lot.
+
+### Changed
+
+- Updated `cocode` dependency from version `v0.0.10` to `v0.0.15`.
+
 ## [v0.8.1] - 2025-08-27
 
 ### Bugfix
@@ -36,7 +197,7 @@
     - `pipelex init libraries [DIRECTORY]` - Initialize pipelex libraries (creates `pipelex_libraries` folder)
     - `pipelex init config` - Initialize pipelex configuration (creates `pipelex.toml`)
   - **`pipelex validate`** - Validation and dry-run commands  
-    - `pipelex validate all` - Validate all libraries and dry-run all pipes
+    - `pipelex validate all -c pipelex/libraries` - Validate all libraries and dry-run all pipes
     - `pipelex validate pipe PIPE_CODE` - Dry run a single pipe by its code
   - **`pipelex show`** - Show and list commands
     - `pipelex show config` - Show the pipelex configuration
@@ -219,7 +380,7 @@ Simplified input memory:
 ### Documentation & Development Experience
 
 - **Cursor Rules Enhancement**: Comprehensive pipe controller documentation covering `PipeSequence`, `PipeCondition`, `PipeBatch`, and `PipeParallel`, improved PipeOperator documentation for `PipeLLM`, `PipeOCR`
-- **Pipeline Validation CLI**: Enhanced `pipelex validate all` command with better error reporting and validation coverage
+- **Pipeline Validation CLI**: Enhanced `pipelex validate all -c pipelex/libraries` command with better error reporting and validation coverage
 - **Improved Error Messages**: Better formatting and context for pipeline configuration errors
 
 ### Changed
@@ -536,7 +697,7 @@ is_reporting_enabled = true
 - Use a minimum version for `uv` instead of a fixed version
 - Implement `AGENTS.md` for Codex
 - Add tests for some of the `tools.misc`
-- pipelex cli: Rename `pipelex run-setup` to `pipelex validate all`
+- pipelex cli: Rename `pipelex run-setup` to `pipelex validate all -c pipelex/libraries`
 
 ## [v0.2.8] - 2025-05-28
 

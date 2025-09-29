@@ -14,7 +14,7 @@ The pipeline `extract_html_table_and_review` takes an image of a table, processe
 async def extract_table(table_screenshot: str) -> HtmlTable:
     working_memory = WorkingMemoryFactory.make_from_image(
         image_url=table_screenshot,
-        concept_str="tables.TableScreenshot",
+        concept_string="tables.TableScreenshot",
         name="table_screenshot",
     )
     pipe_output = await execute_pipeline(
@@ -55,14 +55,14 @@ class HtmlTable(StructuredContent):
         return self
 ```
 
-## The Pipeline Definition: `table.toml`
+## The Pipeline Definition: `table.plx`
 
 The pipeline uses a two-step "extract and review" pattern. The first pipe does the initial extraction, and the second pipe reviews the generated HTML against the original image to correct any errors. This is a powerful pattern for increasing the reliability of LLM outputs.
 
-```toml
+```plx
 [pipe.extract_html_table_and_review]
 type = "PipeSequence"
-description = "Get an HTML table and review it"
+definition = "Get an HTML table and review it"
 inputs = { table_screenshot = "TableScreenshot" }
 output = "HtmlTable"
 steps = [
@@ -74,7 +74,7 @@ steps = [
 
 [pipe.review_html_table]
 type = "PipeLLM"
-description = "Review an HTML table"
+definition = "Review an HTML table"
 inputs = { table_screenshot = "TableScreenshot", html_table = "HtmlTable" }
 output = "HtmlTable"
 prompt_template = """

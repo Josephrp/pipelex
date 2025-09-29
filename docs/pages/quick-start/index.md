@@ -6,6 +6,47 @@ You can **find more powerful examples** in the [Cookbook Examples](../cookbook-e
 
 ---
 
+## Setting up API Keys
+
+Before you can make LLM calls with Pipelex, you need to configure API keys. You have two options:
+
+### Option 1: Use Pipelex Inference (Recommended for Getting Started)
+
+Get **free access** to all well-known commercial and open-source LLMs with a single API key:
+
+1. **Join our Discord community to get your free Pipelex Inference key** (no credit card required, limited time offer)
+   - Visit [https://go.pipelex.com/discord](https://go.pipelex.com/discord) to join
+   - Request your API key in the appropriate channel once you're in
+
+2. **Set up your environment**:
+   ```bash
+   # Create a .env file in your project root
+   echo "PIPELEX_INFERENCE_API_KEY=your-key-here" > .env
+   ```
+
+With Pipelex Inference, you get instant access to models from OpenAI, Anthropic, Google, Mistral, and more - all through a single API key!
+
+### Option 2: Use Your Own API Keys
+
+If you already have API keys from LLM providers, you can use them directly:
+
+```bash
+# Add to your .env file
+OPENAI_API_KEY=your-openai-key
+ANTHROPIC_API_KEY=your-anthropic-key
+GOOGLE_API_KEY=your-google-key
+# Or for Azure OpenAI
+AZURE_API_KEY=your-azure-key
+AZURE_API_BASE=your-azure-endpoint
+# Or for AWS Bedrock
+AWS_ACCESS_KEY_ID=your-aws-key
+AWS_SECRET_ACCESS_KEY=your-aws-secret
+```
+
+For complete configuration details, see the [Inference Backend Configuration](../configuration/config-technical/inference-backend-config.md) documentation.
+
+---
+
 ## Your first LLM call with Pipelex
 
 Let's start by running your very first LLM call using Pipelex.
@@ -13,17 +54,17 @@ For illustration purposes, let's build **a character generator**. Each example r
 
 ### Write your first pipeline
 
-First, create a `.toml` library file in the `pipelex_libraries/pipelines` directory to store your pipe definition.
+First, create a `.plx` library file in the `pipelex_libraries/pipelines` directory to store your pipe definition.
 Run `pipelex init libraries` to create this directory if it doesn't exist. For now, keep all your pipeline definitions inside that folder only.
 
-`character.toml`
-```toml
+`character.plx`
+```plx
 domain = "characters"
 
 [pipe]
 [pipe.create_character]
 type = "PipeLLM"
-description = "Creates a character."
+definition = "Creates a character."
 output = "Text"
 prompt_template = """You are a book writer. Your task is to create a character.
 Think of it and then output the character description."""
@@ -66,10 +107,10 @@ python character.py
 
 ### Indicate your LLM selection explicitly using the `llm` attribute
 
-```toml
+```plx
 [pipe.create_character]
 type = "PipeLLM"
-description = "Create a character."
+definition = "Create a character."
 output = "Text"
 llm = { llm_handle = "gpt-4o-mini", temperature = 0.9, max_tokens = "auto" }
 prompt_template = """You are a book writer. Your task is to create a character.
@@ -78,21 +119,21 @@ Think of it and then output the character description."""
 
 ### Or use an LLM preset from the LLM deck
 
-```toml
+```plx
 [pipe.create_character]
 type = "PipeLLM"
-description = "Create a character."
+definition = "Create a character."
 output = "Text"
 llm = "llm_for_creative_writing"
 prompt_template = """You are a book writer. Your task is to create a character.
 Think of it and then output the character description."""
 
-# The llm deck above is defined in `pipelex_libraries/llm_deck/base_llm_deck.toml` as:
+# The llm deck above is defined in `.pipelex/inference/deck/base_deck.toml` as:
 # llm_for_creative_writing = { llm_handle = "best-claude", temperature = 0.9 }
 # it's a base preset that we provide. you can add your own presets, too.
 ```
 
-💡 We have a lot of [LLM presets available by default](https://github.com/Pipelex/pipelex/tree/main/pipelex/libraries/llm_deck/base_llm_deck.toml).
+💡 We have a lot of [LLM presets available by default](https://github.com/Pipelex/pipelex/tree/main/.pipelex/inference/deck/base_deck.toml).
 Make sure you have credentials for the underlying LLM provider (and added your API key to the `.env`) and select the one you want!
 
 Learn more about LLM presets, LLM handles and LLM deck in our [LLM Configuration Guide](../build-reliable-ai-workflows-with-pipelex/configure-ai-llm-to-optimize-workflows.md)
@@ -118,16 +159,14 @@ class Character(StructuredContent):
     description: str
 ```
 
-ℹ️ We'll soon make it possible to define your structure directly in the `.toml` file, without having to write any python code
-
 ### Improve the pipeline
 
 It's time to specify that your output be a `Character` instance. Use the `output` field for that purpose.
 
 💡 Here, the concept name matches the class name (ie. `Character`), the `Character` class will automatically be considered as the structure to output.
 
-`pipelex_libraries/pipelines/characters.toml`
-```toml
+`pipelex_libraries/pipelines/characters.plx`
+```plx
 domain = "characters"
 
 [concept]
@@ -136,7 +175,7 @@ Character = "A character is a fiction story" # <- Define here your output concep
 [pipe]
 [pipe.create_character]
 type = "PipeLLM"
-description = "Create a character. Get a structured result."
+definition = "Create a character. Get a structured result."
 output = "Character"    # <- This is the output concept for your pipe
 prompt_template = """You are a book writer. Your task is to create a character.
 Think of it and then output the character description."""
@@ -185,7 +224,7 @@ class CharacterMetadata(StructuredContent):
 
 💡 Our template syntax is based on [Jinja2 syntax](https://jinja.palletsprojects.com/en/stable/). You can include a variable using the **classic** `{{ double.curly.braces }}`, and to make it simpler, we've added the possibility to just prefix your variable with the `@` symbol (recommended). Pipes declare their required inputs explicitly with the `inputs` table:
 
-```toml
+```plx
 [concept]
 Character = "A character from a book"
 CharacterMetadata = "Metadata regarding a character."
@@ -193,7 +232,7 @@ CharacterMetadata = "Metadata regarding a character."
 [pipe]
 [pipe.extract_character_1]
 type = "PipeLLM"
-description = "Get character information from a description."
+definition = "Get character information from a description."
 inputs = { character = "Character" }  # <- These are the inputs of your pipe, usable in the prompt_template
 output = "CharacterMetadata"
 prompt_template = """
@@ -218,7 +257,7 @@ from pipelex.core.memory.working_memory_factory import WorkingMemoryFactory
 from pipelex.pipelex import Pipelex
 from pipelex.pipeline.execute import execute_pipeline
 
-from pipelex_libraries.pipelines.screenplay import Character, CharacterMetadata
+from pipelex.libraries.pipelines.screenplay import Character, CharacterMetadata
 
 
 async def process_existing_character():
@@ -237,8 +276,8 @@ async def process_existing_character():
         He moves with quiet purpose and speaks with a calm, thoughtful cadence that suggests he's always listening for more than just what's said.""",
     )
     # Wrap it into a stuff object
-    character_stuff = StuffFactory.make_stuff(
-        concept_code="character.Character", # <- `character` is the domain, `Character` is the concept name
+    character_stuff = StuffFactory.make_from_concept_string(
+        concept_string="character.Character", # <- `character` is the domain, `Character` is the concept name
         name="character",
         content=character,
     )
@@ -247,7 +286,7 @@ async def process_existing_character():
         stuff=character_stuff,
     )
     # Run the pipe identified by its pipe_code (it's the name of the pipe)
-    pipe_output, pipeline_run_id = await execute_pipeline(
+    pipe_output = await execute_pipeline(
         pipe_code="extract_character_1",
         working_memory=working_memory,
     )

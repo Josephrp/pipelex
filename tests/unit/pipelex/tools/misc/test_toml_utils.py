@@ -10,7 +10,7 @@ from pipelex.tools.misc.toml_utils import (
 )
 
 
-class TestTomlUtils:
+class TestTOMLUtils:
     def test_load_toml_from_path_valid_file(self, tmp_path: Path) -> None:
         """Test loading a valid TOML file without issues."""
         toml_content = """domain = "test_domain"
@@ -60,7 +60,7 @@ definition = "Test"
 
 [pipe.test_pipe]
 type = "PipeLLM"
-description = "Test"
+definition = "Test"
 prompt_template = """
 Output this only: "test"
 """   

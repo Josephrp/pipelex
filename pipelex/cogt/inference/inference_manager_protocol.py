@@ -17,8 +17,6 @@ class InferenceManagerProtocol(Protocol):
     # LLM Workers
     ####################################################################################################
 
-    def setup_llm_workers(self): ...
-
     def get_llm_worker(self, llm_handle: str) -> LLMWorkerAbstract: ...
 
     def set_llm_worker_from_external_plugin(
@@ -32,14 +30,10 @@ class InferenceManagerProtocol(Protocol):
     # IMG Generation Workers
     ####################################################################################################
 
-    def setup_imgg_workers(self): ...
-
     def get_imgg_worker(self, imgg_handle: str) -> ImggWorkerAbstract: ...
 
     ####################################################################################################
     # OCR Workers
     ####################################################################################################
 
-    def setup_ocr_workers(self): ...
-
-    def get_ocr_worker(self, ocr_handle: str) -> OcrWorkerAbstract: ...
+    def get_ocr_worker(self, model_handle: str) -> OcrWorkerAbstract: ...

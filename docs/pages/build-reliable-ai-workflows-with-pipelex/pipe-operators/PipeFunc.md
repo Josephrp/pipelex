@@ -27,8 +27,8 @@ Here is an example of a function and its registration:
 ```python
 # in a file like my_custom_functions.py
 
-from pipelex.core.working_memory import WorkingMemory
-from pipelex.core.stuff_content import TextContent
+from pipelex.core.memory.working_memory import WorkingMemory
+from pipelex.core.stuffs.stuff_content import TextContent
 from pipelex.tools.func_registry import func_registry
 
 def concatenate_texts(working_memory: WorkingMemory) -> TextContent:
@@ -53,25 +53,25 @@ You would then call `register_my_functions()` when your Pipelex application init
 
 ## Configuration
 
-Once the function is registered, you can use it in your `.toml` file.
+Once the function is registered, you can use it in your `.plx` file.
 
-### TOML Parameters
+### PLX Parameters
 
 | Parameter       | Type   | Description                                                                 | Required |
 | --------------- | ------ | --------------------------------------------------------------------------- | -------- |
 | `type`          | string | The type of the pipe: `PipeFunc`                                                                          | Yes      |
-| `description`   | string | A description of the function operation.                                                                   | Yes      |
+| `definition`   | string | A description of the function operation.                                                                   | Yes      |
 | `function_name` | string | The unique name used to register the Python function (e.g., "combine_two_texts"). | Yes      |
 | `output`        | string | The concept to associate with the function's return value.                  | Yes      |
 
 ### Example
 
-This TOML snippet shows how to use the `combine_two_texts` function defined above. It assumes two previous pipes have produced outputs named `text_a` and `text_b`.
+This PLX snippet shows how to use the `combine_two_texts` function defined above. It assumes two previous pipes have produced outputs named `text_a` and `text_b`.
 
-```toml
+```plx
 [pipe.combine_them]
 type = "PipeFunc"
-description = "Combine two text inputs using a custom Python function"
+definition = "Combine two text inputs using a custom Python function"
 function_name = "combine_two_texts"
 output = "ConcatenatedText"
 ```

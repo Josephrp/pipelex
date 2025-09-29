@@ -1,6 +1,7 @@
 from typing import Optional
 
 from pipelex.tools.exceptions import FatalError, RootException
+from pipelex.types import StrEnum
 
 
 class CogtError(RootException):
@@ -31,14 +32,6 @@ class LLMWorkerError(CogtError):
     pass
 
 
-class LLMEngineParameterError(CogtError):
-    pass
-
-
-class LLMSDKError(CogtError):
-    pass
-
-
 class LLMPresetNotFoundError(CogtError):
     pass
 
@@ -47,15 +40,11 @@ class LLMSettingsValidationError(CogtError):
     pass
 
 
-class LLMDeckValidatonError(CogtError):
+class ModelDeckValidatonError(CogtError):
     pass
 
 
 class LLMHandleNotFoundError(CogtError):
-    pass
-
-
-class LLMModelProviderError(CogtError):
     pass
 
 
@@ -141,4 +130,56 @@ class MissingPluginError(CogtError):
 
 
 class OcrCapabilityError(CogtError):
+    pass
+
+
+class RoutingProfileLibraryNotFoundError(CogtError):
+    pass
+
+
+class RoutingProfileLibraryError(CogtError):
+    pass
+
+
+class InferenceModelSpecError(CogtError):
+    pass
+
+
+class InferenceBackendError(CogtError):
+    pass
+
+
+class InferenceBackendCredentialsErrorType(StrEnum):
+    VAR_NOT_FOUND = "var_not_found"
+    UNKNOWN_VAR_PREFIX = "unknown_var_prefix"
+    VAR_FALLBACK_PATTERN = "var_fallback_pattern"
+
+
+class InferenceBackendCredentialsError(CogtError):
+    def __init__(
+        self,
+        error_type: InferenceBackendCredentialsErrorType,
+        backend_name: str,
+        message: str,
+        key_name: str,
+    ):
+        self.error_type = error_type
+        self.backend_name = backend_name
+        self.key_name = key_name
+        super().__init__(message)
+
+
+class InferenceBackendLibraryError(CogtError):
+    pass
+
+
+class RoutingProfileError(CogtError):
+    pass
+
+
+class ModelsManagerError(CogtError):
+    pass
+
+
+class ModelDeckNotFoundError(CogtError):
     pass

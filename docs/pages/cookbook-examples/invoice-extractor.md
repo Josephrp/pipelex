@@ -57,15 +57,15 @@ class Invoice(StructuredContent):
     # ... other fields
 ```
 
-## The Pipeline Definition: `invoice.toml`
+## The Pipeline Definition: `invoice.plx`
 
-The entire workflow is defined in a TOML file. This declarative approach makes the pipeline easy to understand and modify. Here's a snippet from `invoice.toml`:
+The entire workflow is defined in a PLX file. This declarative approach makes the pipeline easy to understand and modify. Here's a snippet from `invoice.plx`:
 
-```toml
+```plx
 # The main pipeline, a sequence of steps
 [pipe.process_invoice]
 type = "PipeSequence"
-description = "Process relevant information from an invoice"
+definition = "Process relevant information from an invoice"
 inputs = { invoice_pdf = "PDF" }
 output = "Invoice"
 steps = [
@@ -78,7 +78,7 @@ steps = [
 # A sub-pipeline that uses an LLM to extract the data
 [pipe.extract_invoice_data]
 type = "PipeLLM"
-description = "Extract invoice information from an invoice text transcript"
+definition = "Extract invoice information from an invoice text transcript"
 inputs = { "invoice_page.page_view" = "Page", invoice_details = "InvoiceDetails" }
 output = "Invoice"
 # The output is constrained to the "Invoice" model

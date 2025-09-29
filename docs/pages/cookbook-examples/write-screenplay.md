@@ -15,9 +15,9 @@ async def generate_screenplay(pitch: str):
     """Generate a screenplay from a pitch using the pipeline."""
 
     # Create Stuff object for the pitch
-    pitch_stuff = StuffFactory.make_from_str(
-        str_value=pitch,
-        concept_str="screenplay.Pitch",
+    pitch_stuff = StuffFactory.make_from_concept_string(
+        concept_string="screenplay.Pitch",
+        content=TextContent(text=pitch),
         name="pitch",
     )
 
@@ -75,14 +75,14 @@ class Screenplay(StructuredContent):
     chapters: "ChapterList"
 ```
 
-## The Pipeline Definition: `screenplay_writer.toml`
+## The Pipeline Definition: `screenplay_writer.plx`
 
 The `generate_screenplay` pipeline is a master `PipeSequence` that orchestrates a series of smaller, specialized pipes. This is a perfect example of how to build a complex, creative workflow by breaking it down into manageable steps.
 
-```toml
+```plx
 [pipe.generate_screenplay]
 type = "PipeSequence"
-description = "Generate a complete screenplay from a pitch"
+definition = "Generate a complete screenplay from a pitch"
 inputs = { pitch = "Pitch" }
 output = "FormattedScreenplay"
 steps = [
@@ -101,7 +101,7 @@ steps = [
 # This is the nested sequence that creates all the scenes for a single chapter.
 [pipe.create_scenes_sequence]
 type = "PipeSequence"
-description = "Create all scenes for a chapter sequentially"
+definition = "Create all scenes for a chapter sequentially"
 inputs = { chapter = "Chapter", characters = "CharacterList", detailed_pitch = "DetailedPitch" }
 output = "Chapter"
 steps = [
